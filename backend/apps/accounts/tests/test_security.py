@@ -172,3 +172,31 @@ def test_password_errors_are_reported_on_the_field():
     )
     assert response.status_code == 400
     assert "password" in response.json()["error"]["details"]
+
+
+def test_reusing_a_rotated_refresh_token_revokes_every_session(settings):
+    settings.AUTH_REFRESH_REUSE_GRACE_SECONDS = 0
+    client = APIClient()
+    register_parent(client)
+    stolen = client.cookies[settings.AUTH_COOKIE_NAME].value
+    assert client.post("/api/v1/auth/token/refresh/").status_code == 200  # the real browser rotates
+
+    attacker = APIClient()
+    attacker.cookies[settings.AUTH_COOKIE_NAME] = stolen
+    response = attacker.post("/api/v1/auth/token/refresh/")
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "session_revoked"
+    # the victim's fresh cookie is dead too: nobody can tell which holder is the thief
+    assert client.post("/api/v1/auth/token/refresh/").status_code == 401
+
+
+def test_tab_race_inside_grace_window_is_not_treated_as_theft(settings):
+    settings.AUTH_REFRESH_REUSE_GRACE_SECONDS = 60
+    client = APIClient()
+    register_parent(client)
+    first = client.cookies[settings.AUTH_COOKIE_NAME].value
+    assert client.post("/api/v1/auth/token/refresh/").status_code == 200
+    loser = APIClient()
+    loser.cookies[settings.AUTH_COOKIE_NAME] = first
+    assert loser.post("/api/v1/auth/token/refresh/").json()["error"]["code"] == "not_authenticated"
+    assert client.post("/api/v1/auth/token/refresh/").status_code == 200  # winner keeps working

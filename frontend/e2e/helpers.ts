@@ -32,8 +32,11 @@ export async function createFamily(
   const parentAccess = body.access as string;
   const familyCode = body.user.parent.family.code as string;
   const grades = await (await request.get(`${API}/api/v1/curricula/`)).json();
+  // Grade 3 by default: on a shared dev database grade-5 topics may already hold AI-generated quizzes,
+  // which the demo-mode solver cannot answer. A fresh CI database works with any grade.
+  const gradeNumber = Number(process.env.E2E_GRADE ?? 3);
   const grade5 = grades[0].grades.find(
-    (g: { number: number }) => g.number === 5,
+    (g: { number: number }) => g.number === gradeNumber,
   ).id;
   const child = await request.post(`${API}/api/v1/parents/children/`, {
     headers: { Authorization: `Bearer ${parentAccess}` },

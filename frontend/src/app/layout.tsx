@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Manrope, Onest } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { Providers } from "./providers";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FBFBF6",
+  themeColor: "#f6f7f3",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -45,7 +46,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
     <html lang={locale} className={`${manrope.variable} ${onest.variable} h-full antialiased`}>
       <body className="flex min-h-full flex-col">
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <ServiceWorkerRegistration />
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>

@@ -53,8 +53,11 @@ export const parentApi = {
   updateChild: (id: string, input: ChildUpdateInput) =>
     api<StudentProfile>(`${BASE}/children/${id}/`, { method: "PATCH", body: input }),
   deactivateChild: (id: string) => api<void>(`${BASE}/children/${id}/`, { method: "DELETE" }),
-  eraseChild: (id: string) =>
-    api<{ erased: Record<string, number> }>(`${BASE}/children/${id}/erase/`, { method: "POST" }),
+  eraseChild: (id: string, password: string) =>
+    api<{ erased: Record<string, number> }>(`${BASE}/children/${id}/erase/`, {
+      method: "POST",
+      body: { password },
+    }),
   setPin: (childId: string, pin: string) =>
     api<void>(`${BASE}/children/${childId}/pin/`, { method: "POST", body: { pin } }),
   progress: (id: string) => api<ChildProgress>(`${BASE}/children/${id}/progress/`),
@@ -175,7 +178,10 @@ export function useDeactivateChild(id: string) {
 
 export function useEraseChild(id: string) {
   const invalidate = useInvalidateParent();
-  return useMutation({ mutationFn: () => parentApi.eraseChild(id), onSuccess: invalidate });
+  return useMutation({
+    mutationFn: (password: string) => parentApi.eraseChild(id, password),
+    onSuccess: invalidate,
+  });
 }
 
 export function useSetPin(childId: string) {

@@ -195,7 +195,12 @@ def test_other_family_cannot_read_child_or_sessions(fake_provider):  # noqa: F81
     assert b["parent"].get(f"/api/v1/parents/children/{child_id}/").status_code == 404
     assert b["parent"].get(f"/api/v1/parents/children/{child_id}/progress/").status_code == 404
     assert b["parent"].get(f"/api/v1/parents/children/{child_id}/sessions/{session_id}/").status_code == 404
-    assert b["parent"].post(f"/api/v1/parents/children/{child_id}/erase/").status_code == 404
+    assert (
+        b["parent"]
+        .post(f"/api/v1/parents/children/{child_id}/erase/", {"password": "Strong-pass-123"}, format="json")
+        .status_code
+        == 404
+    )
     assert a["student"].get("/api/v1/parents/overview/").status_code == 403
 
 
@@ -305,7 +310,9 @@ def test_erase_child_data_removes_learning_history(fake_provider):  # noqa: F811
     )
     assert typed.status_code == 201
 
-    erased = fam["parent"].post(f"/api/v1/parents/children/{child_id}/erase/")
+    erased = fam["parent"].post(
+        f"/api/v1/parents/children/{child_id}/erase/", {"password": "Strong-pass-123"}, format="json"
+    )
     assert erased.status_code == 200, erased.content
     assert erased.json()["erased"]["sessions"] == 1
     assert erased.json()["erased"]["uploads"] == 1
@@ -355,7 +362,9 @@ def test_erase_reaches_deactivated_child_and_removes_assignments(fake_provider):
 
     # DELETE only deactivates; erase must still be possible afterwards
     assert fam["parent"].delete(f"/api/v1/parents/children/{child_id}/").status_code == 204
-    erased = fam["parent"].post(f"/api/v1/parents/children/{child_id}/erase/")
+    erased = fam["parent"].post(
+        f"/api/v1/parents/children/{child_id}/erase/", {"password": "Strong-pass-123"}, format="json"
+    )
     assert erased.status_code == 200, erased.content
     assert erased.json()["erased"]["assignments"] == before
     assert Assignment.objects.filter(student_id=child_id).count() == 0
@@ -384,3 +393,16 @@ def test_restricted_child_needs_a_topic_for_topic_modes(fake_provider):  # noqa:
         format="json",
     )
     assert with_topic.status_code == 201, with_topic.content
+
+
+def test_erase_requires_the_parent_password(fake_provider):  # noqa: F811
+    fam = make_family()
+    child_id = fam["child"]["id"]
+    wrong = fam["parent"].post(
+        f"/api/v1/parents/children/{child_id}/erase/", {"password": "nope"}, format="json"
+    )
+    assert wrong.status_code == 403
+    assert wrong.json()["error"]["code"] == "invalid_credentials"
+    missing = fam["parent"].post(f"/api/v1/parents/children/{child_id}/erase/", {}, format="json")
+    assert missing.status_code == 400
+    assert StudentProfile.objects.get(pk=child_id).is_active is True

@@ -21,7 +21,6 @@ node_modules/
 out/
 *.tsbuildinfo
 next-env.d.ts
-frontend/public/sw.js
 frontend/public/swe-worker-*.js
 frontend/public/workbox-*.js
 playwright-report/

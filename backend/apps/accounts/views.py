@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.conf import settings
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenBackendError, TokenError
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.state import token_backend
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.core.audit import audit
@@ -39,6 +44,26 @@ def _not_authenticated(message: str) -> Response:
     return Response(
         {"error": {"code": "not_authenticated", "message": message}}, status=status.HTTP_401_UNAUTHORIZED
     )
+
+
+def _reused_token_owner(raw: str):
+    """Owner of a refresh token that was already rotated or revoked and shows up again.
+
+    That is the signature of a copied cookie: the legitimate browser holds the rotated token, so
+    whoever still presents the old one is not that browser. A short grace window covers two tabs
+    refreshing at the same moment. Expired or forged tokens are not a reuse signal.
+    """
+    try:
+        payload = token_backend.decode(raw, verify=True)
+    except TokenBackendError:
+        return None
+    row = BlacklistedToken.objects.filter(token__jti=payload.get("jti")).select_related("token__user").first()
+    if row is None:
+        return None
+    grace = timedelta(seconds=settings.AUTH_REFRESH_REUSE_GRACE_SECONDS)
+    if timezone.now() - row.blacklisted_at < grace:
+        return None
+    return row.token.user
 
 
 def _check_origin(request) -> None:
@@ -107,6 +132,22 @@ class RefreshView(APIView):
         try:
             serializer.is_valid(raise_exception=True)
         except (TokenError, InvalidToken):
+            owner = _reused_token_owner(raw)
+            if owner is not None:
+                # Reuse detected: nobody can tell which holder is the thief, so every session ends.
+                services.revoke_user_sessions(owner)
+                audit("auth.refresh_reuse_detected", actor=owner, target=owner, request=request)
+                response = Response(
+                    {
+                        "error": {
+                            "code": "session_revoked",
+                            "message": "Сессия отозвана из соображений безопасности. Войди снова.",
+                        }
+                    },
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
+                services.clear_refresh_cookie(response)
+                return response
             return _not_authenticated("Сессия истекла. Войди снова.")
 
         access = serializer.validated_data["access"]

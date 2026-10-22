@@ -24,4 +24,4 @@ USER app
 RUN DEV_FALLBACK=1 DJANGO_SECRET_KEY=build python manage.py collectstatic --noinput
 
 EXPOSE 8000
-CMD ["gunicorn", "config.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+CMD ["gunicorn", "config.asgi:application", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--workers", "2", "--timeout", "120", "--graceful-timeout", "30"]

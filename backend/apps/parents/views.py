@@ -20,6 +20,7 @@ from apps.accounts.serializers import (
     FamilySerializer,
     StudentProfileSerializer,
 )
+from apps.core.exceptions import DomainError
 from apps.core.pagination import DefaultPagination
 from apps.core.permissions import IsParent
 from apps.core.throttles import AuthRateThrottle
@@ -35,6 +36,7 @@ from .serializers import (
     FamilySettingsSerializer,
     NotificationSerializer,
     OverviewSerializer,
+    PasswordConfirmSerializer,
 )
 
 
@@ -160,7 +162,7 @@ class ChildrenViewSet(ViewSet):
             data["messages"] = []
         return Response(data)
 
-    @extend_schema(request=None, responses={200: dict})
+    @extend_schema(request=PasswordConfirmSerializer, responses={200: dict})
     @action(
         detail=True,
         methods=["post"],
@@ -171,6 +173,10 @@ class ChildrenViewSet(ViewSet):
     def erase(self, request, pk=None):
         parent = _parent_for(request)
         student = services.child_for_erase(parent, pk)
+        serializer = PasswordConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if not parent.user.check_password(serializer.validated_data["password"]):
+            raise DomainError("Неверный пароль.", code="invalid_credentials", status_code=403)
         counts = services.erase_child_data(parent=parent, student=student, request=request)
         return Response({"erased": counts})
 

@@ -23,6 +23,7 @@ import {
 } from "@/components/feedback/States";
 import { SessionCard } from "@/components/cards/SessionCard";
 import { Hero, roundButtonClass } from "@/components/layout/Hero";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { SubjectTile } from "@/components/learning/SubjectTile";
 import { useDashboard } from "@/features/dashboard/api";
 
@@ -104,6 +105,7 @@ export default function HomePage() {
           <p className="mt-3 text-sm text-ink/70">{t("photoDisabled")}</p>
         )}
       </Hero>
+      <InstallPrompt />
 
       <DemoBanner />
 

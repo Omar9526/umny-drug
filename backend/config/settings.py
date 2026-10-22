@@ -34,9 +34,11 @@ def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
 
 
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-DEBUG = env_bool("DJANGO_DEBUG", ENVIRONMENT == "development")
 DEV_FALLBACK = env_bool("DEV_FALLBACK", False)
+# Fail closed: a deployment that forgets ENVIRONMENT gets production guards (no DEBUG, real SECRET_KEY),
+# not a debug server. Local work sets ENVIRONMENT=development (or DEV_FALLBACK=1) in .env.
+ENVIRONMENT = os.getenv("ENVIRONMENT") or ("development" if DEV_FALLBACK else "production")
+DEBUG = env_bool("DJANGO_DEBUG", ENVIRONMENT == "development")
 
 _PLACEHOLDER_SECRETS = {
     "",
@@ -73,6 +75,8 @@ ADMIN_URL_PATH = os.getenv("DJANGO_ADMIN_PATH", "admin/").strip("/") + "/"
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
@@ -105,6 +109,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -366,12 +371,48 @@ if ENVIRONMENT == "production":
     SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
-    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    SECURE_HSTS_SECONDS = int(
+        os.getenv("SECURE_HSTS_SECONDS", str(60 * 60 * 24 * 180))
+    )  # same as next.config
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)  # only after a year-long max-age
 
 # ---------------------------------------------------------------------------
 # Logging (structured, no PII)
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Email and operations alerts
+# ---------------------------------------------------------------------------
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+    if ENVIRONMENT == "development"
+    else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "Умный друг <no-reply@umnydrug.local>")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+# Who receives operational alerts (AI budget, errors): "ops@example.com,admin@example.com".
+ADMINS = [(address.split("@")[0], address) for address in env_list("DJANGO_ADMINS", "")]
+if ENVIRONMENT == "production" and (not ADMINS or not EMAIL_HOST):
+    import warnings
+
+    warnings.warn(
+        "DJANGO_ADMINS/EMAIL_HOST are not set: AI budget alerts and error mails have nowhere to go",
+        RuntimeWarning,
+        stacklevel=1,
+    )
+# Alert when today's AI spend crosses this share of AI_DAILY_BUDGET_USD (checked by a beat task).
+AI_BUDGET_ALERT_THRESHOLD = float(os.getenv("AI_BUDGET_ALERT_THRESHOLD", "0.8"))
+# A rotated refresh token presented again within this window is a tab race, not a stolen cookie.
+AUTH_REFRESH_REUSE_GRACE_SECONDS = int(os.getenv("AUTH_REFRESH_REUSE_GRACE_SECONDS", "30"))
+# Label shown in authenticator apps for the admin 2FA entry.
+OTP_TOTP_ISSUER = "Умный друг"
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

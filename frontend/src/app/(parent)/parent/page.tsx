@@ -11,6 +11,7 @@ import { LogoMark } from "@/components/brand/Logo";
 import { DemoBanner } from "@/components/feedback/DemoBanner";
 import { CardSkeleton, EmptyState, ErrorState } from "@/components/feedback/States";
 import { Hero } from "@/components/layout/Hero";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { TopicChip, WeekLine } from "@/components/parent/ProgressBits";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useOverview } from "@/features/parent/api";
@@ -63,6 +64,7 @@ export default function ParentHomePage() {
           </div>
         )}
       </Hero>
+      <InstallPrompt />
 
       <DemoBanner />
 

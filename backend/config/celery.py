@@ -14,6 +14,10 @@ app.conf.beat_schedule = {
         "task": "apps.assignments.tasks.purge_expired_images",
         "schedule": 60 * 60 * 6,
     },
+    "check-ai-budget": {
+        "task": "apps.tutor.tasks.check_ai_budget",
+        "schedule": 60 * 60,
+    },
     "send-weekly-parent-reports": {
         "task": "apps.parents.tasks.send_weekly_reports",
         "schedule": crontab(day_of_week="monday", hour=9, minute=0),

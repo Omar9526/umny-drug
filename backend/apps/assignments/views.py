@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from django.conf import settings
-from django.http import FileResponse, HttpResponseRedirect
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
@@ -111,8 +110,8 @@ class ImageView(APIView):
         image = get_object_or_404(qs, pk=pk)
         if not image.is_available:
             return Response({"error": {"code": "gone", "message": "Срок хранения фото истёк."}}, status=410)
-        if settings.STORAGE_BACKEND == "s3":
-            return HttpResponseRedirect(image.file.url)
+        # Streamed for every storage backend: a presigned S3 URL would point at the internal object
+        # store host and at a different origin than the CSP allows.
         response = FileResponse(image.file.open("rb"), content_type=image.mime_type)
         response["Cache-Control"] = "private, max-age=300"
         response["X-Content-Type-Options"] = "nosniff"

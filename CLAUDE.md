@@ -152,6 +152,43 @@ cd frontend && npm run typecheck && npm run lint && npm test && npm run build
   (лимит вызовов считает и её). Повтор загрузки ограничен `MAX_RETRIES=3` (`AssignmentUpload.retry_count`).
   Фото выдаются только самому ученику или родителю (не брату/сестре).
 
+## Этап 5: безопасность, PWA, эксплуатация (в работе 2026-10-22)
+
+- `ENVIRONMENT` без значения = production (fail closed); локально `.env` задаёт development. Тесты форсируют
+  development в `settings_test.py`.
+- Django admin требует 2FA (django-otp, TOTP) во всех окружениях: пароль + 6-значный код, обходов для dev нет.
+  Включить: `manage.py admin_totp <email>` (staff) → otpauth URL/секрет в Google Authenticator/1Password;
+  `--reset` перевыпускает ключ, `--qr` печатает QR (нужен пакет qrcode). Без аргументов — список staff и ключей.
+  Форма и сообщения — `apps/accounts/admin_site.py`.
+- Refresh-токен: повторное предъявление уже ротированного/отозванного токена позже
+  `AUTH_REFRESH_REUSE_GRACE_SECONDS` (30 с, гонка вкладок) отзывает все сессии пользователя, чистит cookie,
+  ответ 401 `session_revoked`, запись в audit `auth.refresh_reuse_detected`.
+- Стирание данных ребёнка требует пароль родителя (`PasswordConfirmSerializer`), как и удаление семьи.
+- Лимит вызовов на ученика резервируется атомарно в cache (`ai-calls:<день>:<student>`) до вызова модели;
+  строки `AIUsage` остаются источником истины. Beat-задача `check_ai_budget` (раз в час) шлёт `mail_admins`
+  при расходе ≥ `AI_BUDGET_ALERT_THRESHOLD`; сводка для операторов — `GET /api/v1/admin/ai-usage/` (admin).
+- Frontend: CSP с nonce в `src/proxy.ts` (скрипты только с nonce, стили `'unsafe-inline'` из-за inline-атрибутов
+  Tailwind/KaTeX, `connect-src`/`img-src` = origin API; в dev добавлены `'unsafe-eval'` и `ws:`), HSTS и COOP в
+  `next.config.ts`. Новые внешние ресурсы нужно добавлять в CSP явно.
+- PWA без плагинов: `public/sw.js` (кэши `ud-*` с `VERSION` — поднимать при смене правил; кэшируются только
+  `/offline`, иконки и `/_next/static`; навигация network-first → `/offline`; `/api/*`, другой origin и RSC не
+  кэшируются — страницы с данными ребёнка в кэш не попадают), `components/pwa/ServiceWorkerRegistration.tsx`
+  (только production, тост «Доступно обновление»), `components/pwa/InstallPrompt.tsx` (beforeinstallprompt /
+  подсказка iOS, «Позже» на 14 дней в localStorage), `app/offline/`. `sw.js` отдаётся с `no-store` и своим CSP.
+  Язык офлайн-страницы фиксируется при установке SW (cookie `ud_locale`).
+- Деплой: `docs/DEPLOY.md`; мобильная обёртка: `docs/MOBILE.md`. Lock зависимостей: `backend/requirements.lock.txt`
+  (снят с Windows-venv, с dev-пакетами; production-lock собрать в Linux-контейнере).
+- По релизному аудиту 2026-10-22: `.dockerignore` в обоих сервисах; compose требует все секреты (`${VAR:?}`), не публикует
+  порты хранилищ, backend/frontend только на 127.0.0.1, `NUM_PROXIES=1`, одноразовый сервис `migrate`, healthchecks и
+  `restart: unless-stopped`, теги MinIO закреплены (проверить `docker compose pull`); фото всегда стримятся через API
+  (presigned-URL ломал CSP и указывал на внутренний хост); `/health/` отдаёт 503 при деградации БД/кэша;
+  `.env.production.example`; `scripts/backup_db.sh`. Юридические страницы — черновик с плейсхолдерами `[...]`,
+  нужна юридическая вычитка до запуска. Dev-only: `X-Content-Type-Options` не ставится в dev (манифест прокси
+  Turbopack отдаётся как JSON).
+- Dev-сервер Next на этой машине иногда падает с паникой Turbopack «node process exited 0xc0000142» при компиляции
+  CSS; лечится остановкой, `rm -rf frontend/.next/dev` и перезапуском. Production-сборка (`next build`/`next start`)
+  при этом работает.
+
 ## Чего не делать
 
 - Не выдавать Demo Mode за интеграцию AI; не класть ключи в репозиторий.

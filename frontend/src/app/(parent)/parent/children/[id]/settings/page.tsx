@@ -61,6 +61,8 @@ function SettingsForm({ child, id }: { child: StudentProfile; id: string }) {
   const deactivate = useDeactivateChild(id);
   const erase = useEraseChild(id);
   const [nickname, setNickname] = useState<string | null>(null);
+  const [eraseOpen, setEraseOpen] = useState(false);
+  const [erasePassword, setErasePassword] = useState("");
   const grades = curricula.data?.find((c) => c.code === child.curriculum.code)?.grades ?? [];
   const nicknameValue = nickname ?? child.nickname;
   const nicknameDirty = nicknameValue.trim() !== child.nickname;
@@ -88,10 +90,9 @@ function SettingsForm({ child, id }: { child: StudentProfile; id: string }) {
   }
 
   async function onErase() {
-    if (!window.confirm(t("eraseConfirm", { name: child.nickname }))) return;
-    if (!window.confirm(t("eraseConfirmAgain"))) return;
+    if (!erasePassword) return;
     try {
-      await erase.mutateAsync();
+      await erase.mutateAsync(erasePassword);
       toast.success(t("erased"));
       router.replace("/parent");
     } catch (error) {
@@ -196,14 +197,61 @@ function SettingsForm({ child, id }: { child: StudentProfile; id: string }) {
               <UserRoundX /> {t("deactivate")}
             </Button>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-base font-semibold">{t("erase")}</p>
-              <p className="text-sm text-muted-foreground">{t("eraseHint")}</p>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-base font-semibold">{t("erase")}</p>
+                <p className="text-sm text-muted-foreground">{t("eraseHint")}</p>
+              </div>
+              {!eraseOpen && (
+                <Button variant="destructive" onClick={() => setEraseOpen(true)}>
+                  <Trash2 /> {t("erase")}
+                </Button>
+              )}
             </div>
-            <Button variant="destructive" onClick={onErase} disabled={erase.isPending}>
-              <Trash2 /> {t("erase")}
-            </Button>
+            {eraseOpen && (
+              <form
+                className="rise-in flex flex-col gap-3 rounded-2xl bg-destructive/5 p-4 ring-1 ring-destructive/20"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void onErase();
+                }}
+              >
+                <p className="text-sm font-semibold text-destructive">
+                  {t("eraseConfirm", { name: child.nickname })}
+                </p>
+                <Field label={t("erasePassword")}>
+                  {(props) => (
+                    <Input
+                      {...props}
+                      type="password"
+                      autoComplete="current-password"
+                      value={erasePassword}
+                      onChange={(e) => setErasePassword(e.target.value)}
+                    />
+                  )}
+                </Field>
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    disabled={!erasePassword || erase.isPending}
+                  >
+                    <Trash2 /> {t("eraseNow")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setEraseOpen(false);
+                      setErasePassword("");
+                    }}
+                  >
+                    {ta("cancel")}
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </section>

@@ -3,6 +3,11 @@ from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+from apps.accounts.admin_site import AdminOTPSite
+
+# Admin requires password + TOTP in every environment (no DEBUG/development bypass).
+admin.site.__class__ = AdminOTPSite
+
 api_v1 = [
     path("", include("apps.core.urls")),
     path("auth/", include("apps.accounts.urls")),

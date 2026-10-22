@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from django.conf import settings
+from django.core.cache import cache
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -102,7 +103,26 @@ def ensure_budget(*, student=None, family=None) -> None:
             code="family_budget_exceeded",
         )
     max_calls = int(getattr(settings, "AI_DAILY_CALLS_PER_STUDENT", 0) or 0)
-    if student is not None and max_calls > 0 and calls_today(student=student) >= max_calls:
+    if student is not None and max_calls > 0:
+        if calls_today(student=student) >= max_calls:
+            raise AIProviderError(
+                "На сегодня запросов к помощнику достаточно. Отдохни и возвращайся завтра.",
+                code="student_limit_exceeded",
+            )
+        _reserve_call(student, max_calls)
+
+
+def _reserve_call(student, max_calls: int) -> None:
+    """Count the call *before* it is made (atomic INCR in the cache), so parallel requests cannot all
+    pass the row-count check above and overshoot the daily limit. Rows in ``AIUsage`` stay the source
+    of truth across cache restarts."""
+    key = f"ai-calls:{timezone.localdate().isoformat()}:{student.pk}"
+    cache.add(key, 0, timeout=60 * 60 * 36)
+    try:
+        reserved = cache.incr(key)
+    except ValueError:  # the key expired between add and incr
+        reserved = 1
+    if reserved > max_calls:
         raise AIProviderError(
             "На сегодня запросов к помощнику достаточно. Отдохни и возвращайся завтра.",
             code="student_limit_exceeded",

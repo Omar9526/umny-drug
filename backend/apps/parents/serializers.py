@@ -145,6 +145,12 @@ class FamilySettingsSerializer(serializers.ModelSerializer):
         read_only_fields = ("country",)
 
 
+class PasswordConfirmSerializer(serializers.Serializer):
+    """Re-authentication for irreversible actions on a child's data."""
+
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+
+
 class FamilyDeleteSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
     confirm = serializers.BooleanField()
