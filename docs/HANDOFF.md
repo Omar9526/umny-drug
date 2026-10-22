@@ -1,0 +1,73 @@
+# Передача работы на другую машину
+
+Файл для продолжения разработки с чистой машины (дом, ноутбук). Скопируйте блок «Промпт» в новую сессию
+Claude Code, открытую в корне клонированного репозитория. Всё, чего нет в git (ключи, локальная база), описано в
+разделе «Что настроить руками».
+
+## Промпт
+
+```
+Ты продолжаешь разработку проекта «Умный друг» (образовательный AI-помощник для школьников 1–11 классов
+Кыргызстана, ru/ky): Django 5.2 + DRF backend в backend/, Next.js 16 frontend в frontend/. Репозиторий:
+https://github.com/Omar9526/umny-drug. Ты — постоянный разработчик проекта; работа идёт поэтапно и уже сделаны
+этапы 1–5 (аккаунты и семьи, фото → распознавание → объяснение → проверка, кабинет родителя, карта знаний и
+викторины, дизайн по референсу, провайдеры AI Anthropic/Gemini/демо, безопасность, PWA, деплой-документация).
+
+Сначала прочитай CLAUDE.md в корне (конвенции, архитектура, история решений — это главный источник правды), затем
+README.md, docs/DEPLOY.md, docs/MOBILE.md и этот файл docs/HANDOFF.md. Проверь git log и git status.
+
+Правила работы:
+- Общение на русском; код, имена, команды — на английском. Финальный отчёт строго по шаблону: 1 Что обнаружено,
+  2 Что изменено (файлы), 3 Что проверено (команды), 4 Результат тестов/сборки, 5 NOT VERIFIED, 6 Риски.
+- Workflow: ANALYZE → PLAN → IMPLEMENT → TEST → VERIFY → REVIEW. Не писать код вслепую, не выдавать предположение
+  за факт, всё непроверенное — в NOT VERIFIED.
+- После каждого завершённого куска работы: прогнать проверки (см. ниже), сделать коммит на русском со строкой
+  «Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>» и push в origin main. Force-push не делать.
+- Никаких XP, монет, рейтингов и лидербордов (есть в референсе — осознанно не делаем). Демо-режим всегда явно
+  помечен. Никаких фейковых данных и «мёртвых» кнопок. Секреты только через .env (в git не попадает).
+- Mobile-first, каждый этап показывать на localhost и давать пути, что посмотреть.
+- Для нетривиальных изменений запускать субагентов code-reviewer и security-reviewer и исправлять найденное.
+
+Проверки перед отчётом и коммитом:
+  cd backend && .venv/Scripts/python.exe -m pytest -q && .venv/Scripts/python.exe -m ruff check . && .venv/Scripts/python.exe -m ruff format --check . && .venv/Scripts/python.exe manage.py makemigrations --check --dry-run
+  cd frontend && npm run typecheck && npm run lint && npm test && npm run build
+  E2E (нужны оба dev-сервера, бэкенд в демо-режиме: AI_PROVIDER=demo): cd frontend && npm run test:e2e
+(на macOS/Linux вместо .venv/Scripts/python.exe — .venv/bin/python)
+
+Открытые задачи, из которых выбирать следующую (спроси пользователя, если он не сказал):
+1. Прогон распознавания на реальных фото тетрадей (скрипт-идея: загрузка через POST /api/v1/assignments/upload/,
+   сравнение с эталоном) — пока проверено только на синтетических картинках, 11/11.
+2. Первый деплой по docs/DEPLOY.md (Docker-стек ни разу не запускался: нет Docker на машине разработки).
+3. Юридическая вычитка frontend/src/app/legal/* (черновики с плейсхолдерами в [скобках]).
+4. Сверка тем 10–11 классов учителем и вычитка кыргызских текстов носителем (ky в сиде и messages/ky.json).
+5. Обёртка Capacitor (docs/MOBILE.md), push-уведомления родителям.
+6. Перевыпуск ключа Gemini (прежний засветился в переписке) и настройка SMTP для алертов.
+Начни с чтения CLAUDE.md и короткого плана на 5–7 строк, затем работай.
+```
+
+## Что настроить руками на новой машине
+
+Ключи и локальная база не хранятся в git, поэтому один раз:
+
+1. `git clone https://github.com/Omar9526/umny-drug.git && cd umny-drug`
+2. Backend: `cd backend && python -m venv .venv`, активировать, `pip install -r requirements-dev.txt`.
+3. Корневой `.env`: скопировать из `.env.example`, оставить `ENVIRONMENT=development`, `DEV_FALLBACK=1`
+   (SQLite, без Docker/Postgres/Redis), вписать `GEMINI_API_KEY=` (или `ANTHROPIC_API_KEY=`); без ключа будет
+   демо-режим. Для повторных E2E можно ослабить `THROTTLE_AUTH=120/min`, `THROTTLE_CHILD_LOGIN=60/min`.
+4. `python manage.py migrate && python manage.py seed_curriculum` (597 тем, узлы карты знаний).
+5. Админка: `python manage.py createsuperuser`, затем `python manage.py admin_totp <email>` — без TOTP в админку не
+   войти.
+6. Frontend: `cd frontend && npm ci`; файл `frontend/.env.local` со строкой `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+7. Запуск: `python manage.py runserver 127.0.0.1:8000` и `npm run dev` → http://localhost:3000. Логи dev-серверов
+   не писать в дерево проекта (watcher Next зацикливается).
+8. Семью создать через интерфейс: «Я родитель» → регистрация → добавить ребёнка; код семьи и PIN появятся в кабинете.
+   Демо-семья с рабочей машины (`demo@umnydrug.local`) живёт только в её локальной базе.
+9. E2E: Playwright использует системный Chrome (`channel: "chrome"`), Chromium скачивать не нужно.
+
+## Что помнить про окружение
+
+- Dev-сервер Next 16 на Windows иногда падает с паникой Turbopack `0xc0000142` при компиляции CSS: остановить,
+  удалить `frontend/.next/dev`, запустить снова. Production-сборка при этом работает.
+- Скриншоты и проверки в браузере делать через Playwright на системном Chrome; CDP по `--remote-debugging-port`
+  в Chrome 155 для внешних скриптов не поднимается.
+- Тесты backend идут на `config.settings_test` (демо-провайдер, production-лимиты), `.env` на них не влияет.
