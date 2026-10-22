@@ -1,0 +1,21 @@
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+exclude = ["migrations", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "DJ", "S", "T20"]
+ignore = ["S101", "S105", "S106", "DJ001", "B904"]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*" = ["S", "E501"]
+"conftest.py" = ["S"]
+"apps/curriculum/seed_data.py" = ["E501"]
+"ai/demo.py" = ["E501"]
+"ai/prompts/*.py" = ["E501"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings_test"
+python_files = ["test_*.py"]
+addopts = "-q -p no:cacheprovider"
+filterwarnings = ["ignore::DeprecationWarning"]

@@ -1,0 +1,120 @@
+name: umnydrug
+
+x-backend-env: &backend-env
+  env_file: .env
+  environment:
+    ENVIRONMENT: production
+    DJANGO_DEBUG: "0"
+    DEV_FALLBACK: "0"
+    DATABASE_URL: postgres://${POSTGRES_USER:-umnydrug}:${POSTGRES_PASSWORD:-umnydrug}@db:5432/${POSTGRES_DB:-umnydrug}
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    CELERY_RESULT_BACKEND: redis://redis:6379/2
+    STORAGE_BACKEND: s3
+    S3_ENDPOINT_URL: http://minio:9000
+    S3_ACCESS_KEY: ${MINIO_ROOT_USER:-minio}
+    S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minio-change-me}
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-umnydrug}
+      POSTGRES_USER: ${POSTGRES_USER:-umnydrug}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-umnydrug}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-umnydrug} -d ${POSTGRES_DB:-umnydrug}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minio-change-me}
+    volumes:
+      - miniodata:/data
+    ports:
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-minio} ${MINIO_ROOT_PASSWORD:-minio-change-me} &&
+      mc mb --ignore-existing local/${S3_BUCKET:-umnydrug-private} &&
+      mc anonymous set none local/${S3_BUCKET:-umnydrug-private}
+      "
+
+  backend:
+    build: ./backend
+    <<: *backend-env
+    command: >
+      sh -c "python manage.py migrate --noinput &&
+             python manage.py seed_curriculum &&
+             gunicorn config.asgi:application -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 --workers 2 --timeout 120"
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+
+  worker:
+    build: ./backend
+    <<: *backend-env
+    command: celery -A config worker -l info --concurrency 2
+    depends_on:
+      backend:
+        condition: service_started
+
+  beat:
+    build: ./backend
+    <<: *backend-env
+    command: celery -A config beat -l info
+    depends_on:
+      backend:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
