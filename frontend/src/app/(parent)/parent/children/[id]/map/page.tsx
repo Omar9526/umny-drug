@@ -38,7 +38,7 @@ export default function ParentMapPage({
         }
         backHref={`/parent/children/${id}`}
       />
-      {(child.isPending || subjects.isPending) && <CardSkeleton lines={2} />}
+      {(child.isLoading || subjects.isLoading) && <CardSkeleton lines={2} />}
       {child.isError && (
         <ErrorState error={child.error} onRetry={() => child.refetch()} />
       )}
@@ -77,7 +77,7 @@ export default function ParentMapPage({
           ))}
         </div>
       )}
-      {slug && map.isPending && <CardSkeleton lines={4} />}
+      {slug && map.isLoading && <CardSkeleton lines={4} />}
       {map.isError && (
         <ErrorState error={map.error} onRetry={() => map.refetch()} />
       )}

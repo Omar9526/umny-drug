@@ -192,3 +192,47 @@ def test_attempts_are_private_to_the_student():
     assert a["parent"].post(START, {"topic_id": _topic().id}, format="json").status_code == 403
     student = StudentProfile.objects.get(pk=a["child"]["id"])
     assert QuizAttempt.objects.filter(student=student).count() == 1
+
+
+def test_parallel_start_while_generating_is_rejected(fake_provider):  # noqa: F811
+    from django.core.cache import cache
+
+    fam = make_family()
+    topic = _topic("russian")
+    key = f"quiz-start:{fam['child']['id']}:{topic.id}"
+    assert cache.add(key, 1, timeout=60)
+    try:
+        response = fam["student"].post(START, {"topic_id": topic.id}, format="json")
+    finally:
+        cache.delete(key)
+    assert response.status_code == 409, response.content
+    assert response.json()["error"]["code"] == "quiz_generating"
+
+
+def test_skipping_every_question_leaves_topic_status_alone(fake_provider):  # noqa: F811
+    fam = make_family()
+    topic = _topic("russian")
+    student = StudentProfile.objects.get(pk=fam["child"]["id"])
+    LearningProgress.objects.create(
+        student=student, family=student.family, topic=topic, status=LearningProgress.Status.MASTERED
+    )
+    attempt = _start(fam["student"], topic)
+    finished = fam["student"].post(f"/api/v1/quizzes/attempts/{attempt['id']}/finish/")
+    assert finished.status_code == 200, finished.content
+    assert finished.json()["correct_count"] == 0
+    assert (
+        LearningProgress.objects.get(student=student, topic=topic).status == LearningProgress.Status.MASTERED
+    )
+
+
+def test_answer_payload_carries_correct_option_keys(fake_provider):  # noqa: F811
+    fam = make_family()
+    attempt = _start(fam["student"], _topic("russian"))
+    question = next(q for q in attempt["questions"] if q["type"] == "single")
+    response = _answer(fam["student"], attempt["id"], question["id"], _wrong_answer(question["id"]))
+    assert response.status_code == 200, response.content
+    body = response.json()
+    assert body["correct"] is False
+    assert body["correct_keys"] == [str(Question.objects.get(pk=question["id"]).correct)]
+    reloaded = fam["student"].get(f"/api/v1/quizzes/attempts/{attempt['id']}/").json()
+    assert reloaded["results"][str(question["id"])]["correct_keys"] == body["correct_keys"]

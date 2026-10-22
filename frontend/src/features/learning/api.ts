@@ -72,6 +72,7 @@ export function useAnswerQuestion(attemptId: string) {
             correct: result.correct,
             explanation: result.explanation,
             correct_answer: result.correct_answer,
+            correct_keys: result.correct_keys,
             checked_at: new Date().toISOString(),
           },
         };

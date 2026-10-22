@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { roundButtonClass } from "@/components/layout/Hero";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export function PageHeader({
   tone?: "default" | "onLime";
 }) {
   const router = useRouter();
+  const ta = useTranslations("app");
   if (!back) {
     return (
       <header className={cn("mb-5 flex items-end justify-between gap-3", className)}>
@@ -42,7 +44,7 @@ export function PageHeader({
     <header className={cn("mb-5 flex items-center gap-3", className)}>
       <button
         type="button"
-        aria-label="Назад"
+        aria-label={ta("back")}
         onClick={() => (backHref ? router.push(backHref) : router.back())}
         className={roundButtonClass()}
       >

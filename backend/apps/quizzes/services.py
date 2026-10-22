@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import re
 
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
@@ -54,6 +55,10 @@ def _request_for(topic: Topic, grade: Grade, language: str, count: int) -> QuizR
     )
 
 
+GENERATION_LOCK_SECONDS = 90
+
+
+@transaction.atomic
 def _store_quiz(
     spec: QuizSpec, *, topic: Topic, grade: Grade, language: str, source: str, model: str
 ) -> Quiz:
@@ -156,12 +161,32 @@ def start_quiz(*, student: StudentProfile, topic: Topic, request=None) -> QuizAt
         .first()
     )
     if quiz is None:
-        quiz = _generate(student=student, topic=topic, grade=grade, language=language)
+        # One generation per child and topic at a time: a double tap or a second tab must not pay twice.
+        lock_key = f"quiz-start:{student.pk}:{topic.pk}"
+        if not cache.add(lock_key, 1, timeout=GENERATION_LOCK_SECONDS):
+            raise DomainError(
+                "Проверка уже готовится. Подожди несколько секунд.", code="quiz_generating", status_code=409
+            )
+        try:
+            quiz = _generate(student=student, topic=topic, grade=grade, language=language)
+        finally:
+            cache.delete(lock_key)
     return _open_attempt(student=student, topic=topic, quiz=quiz, request=request)
 
 
 @transaction.atomic
 def _open_attempt(*, student: StudentProfile, topic: Topic, quiz: Quiz, request=None) -> QuizAttempt:
+    # Serialise concurrent starts for this child and re-check: a parallel request may have opened an
+    # attempt while this one was generating (the extra quiz simply stays in the pool).
+    list(StudentProfile.objects.select_for_update().filter(pk=student.pk).values_list("pk", flat=True))
+    existing = (
+        QuizAttempt.objects.filter(student=student, quiz__topic=topic, status=QuizAttempt.Status.IN_PROGRESS)
+        .select_related("quiz")
+        .order_by("-started_at")
+        .first()
+    )
+    if existing is not None:
+        return existing
     attempt = QuizAttempt.objects.create(
         quiz=quiz, student=student, family=student.family, total_count=quiz.questions.count()
     )
@@ -222,6 +247,7 @@ def _result_payload(attempt: QuizAttempt, question: Question) -> dict:
         "correct": result["correct"],
         "explanation": result["explanation"],
         "correct_answer": result["correct_answer"],
+        "correct_keys": result.get("correct_keys", []),
         "answered": len(attempt.results),
         "total": attempt.total_count,
     }
@@ -245,6 +271,10 @@ def answer_question(*, attempt: QuizAttempt, question_id: int, answer: object) -
         "correct": correct,
         "explanation": question.explanation(lang),
         "correct_answer": correct_answer,
+        # option keys, so the client highlights the right option by key rather than by text
+        "correct_keys": _as_list(question.correct)
+        if question.type in (Question.Type.SINGLE, Question.Type.MULTIPLE)
+        else [],
         "checked_at": timezone.now().isoformat(),
     }
     if correct:
@@ -263,9 +293,11 @@ def finish_quiz(*, attempt: QuizAttempt, request=None) -> QuizAttempt:
     attempt.status = QuizAttempt.Status.FINISHED
     attempt.finished_at = timezone.now()
     score = attempt.correct_count / attempt.total_count if attempt.total_count else 0.0
-    attempt.topics_to_review = [attempt.quiz.topic_id] if score < 0.5 else []
+    answered = len(attempt.results)
+    attempt.topics_to_review = [attempt.quiz.topic_id] if answered and score < 0.5 else []
     attempt.save(update_fields=["status", "finished_at", "topics_to_review", "updated_at"])
-    apply_quiz_result(attempt, score)
+    if answered:  # skipping every question says nothing about the topic: leave its status alone
+        apply_quiz_result(attempt, score)
     audit(
         "quiz.finished",
         actor=attempt.student.user,

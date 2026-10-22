@@ -5,6 +5,7 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import StudentProfile
@@ -35,6 +36,7 @@ def _ctx(request) -> dict:
 @extend_schema(tags=["quizzes"], request=StartQuizSerializer, responses={201: QuizAttemptSerializer})
 class QuizStartView(APIView):
     permission_classes = (IsAuthenticated, IsStudent)
+    throttle_classes = (ScopedRateThrottle,)
     throttle_scope = "ai"
 
     def post(self, request):

@@ -17,10 +17,10 @@ from django.utils import timezone
 
 from apps.accounts.models import ConsentRecord, ParentProfile, StudentProfile
 from apps.accounts.services import deactivate_child, revoke_user_sessions
-from apps.assignments.models import AssignmentImage, AssignmentUpload
+from apps.assignments.models import Assignment, AssignmentImage, AssignmentUpload
 from apps.core.audit import audit
 from apps.core.exceptions import DomainError
-from apps.learning.models import LearningProgress
+from apps.learning.models import AnswerAttempt, LearningProgress
 from apps.quizzes.models import QuizAttempt
 from apps.tutor.models import LearningSession
 
@@ -70,6 +70,13 @@ def children_of(parent: ParentProfile):
 
 def child_for(parent: ParentProfile, child_id) -> StudentProfile:
     return get_object_or_404(children_of(parent), pk=child_id)
+
+
+def child_for_erase(parent: ParentProfile, child_id) -> StudentProfile:
+    """Erase must also reach a child that is already deactivated (DELETE or a revoked consent)."""
+    return get_object_or_404(
+        StudentProfile.objects.filter(family=parent.family).select_related("user"), pk=child_id
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -517,21 +524,41 @@ def revoke_consent(*, parent: ParentProfile, consent: ConsentRecord, request=Non
 
 
 @transaction.atomic
+def _delete_stored_files(files: list[tuple[object, str]]) -> None:
+    for storage, name in files:
+        try:
+            storage.delete(name)
+        except OSError:
+            logger.warning("could not delete stored file %s", name)
+
+
+@transaction.atomic
 def erase_child_data(*, parent: ParentProfile, student: StudentProfile, request=None) -> dict:
-    """Delete learning data of a child now (not just deactivate). Audit rows stay without content."""
+    """Delete learning data of a child now (not just deactivate). Audit rows stay without content.
+
+    Files leave the storage only after the transaction commits, so a rollback never leaves rows
+    that point at deleted files. ``Assignment`` rows are deleted explicitly: their upload FK is
+    SET_NULL, so they would otherwise survive with the recognized text.
+    """
     counts = {}
+    files: list[tuple[object, str]] = []
     images = AssignmentImage.objects.filter(upload__student=student)
     counts["images"] = images.count()
     for image in images:
         if image.file:
-            try:
-                image.file.delete(save=False)
-            except OSError:
-                logger.warning("could not delete file for image %s", image.id)
+            files.append((image.file.storage, image.file.name))
+    for attempt in (
+        AnswerAttempt.objects.filter(student=student)
+        .exclude(answer_image__isnull=True)
+        .exclude(answer_image="")
+    ):
+        files.append((attempt.answer_image.storage, attempt.answer_image.name))
     counts["uploads"] = AssignmentUpload.objects.filter(student=student).count()
+    counts["assignments"] = Assignment.objects.filter(student=student).count()
     counts["sessions"] = LearningSession.objects.filter(student=student).count()
-    AssignmentUpload.objects.filter(student=student).delete()  # cascades images and assignments
     LearningSession.objects.filter(student=student).delete()  # cascades conversation, messages, attempts
+    Assignment.objects.filter(student=student).delete()
+    AssignmentUpload.objects.filter(student=student).delete()  # cascades images
     LearningProgress.objects.filter(student=student).delete()
     QuizAttempt.objects.filter(student=student).delete()
     ParentNotification.objects.filter(student=student).delete()
@@ -546,6 +573,7 @@ def erase_child_data(*, parent: ParentProfile, student: StudentProfile, request=
     student.user.is_active = False
     student.user.save(update_fields=["display_name", "is_active", "updated_at"])
     revoke_user_sessions(student.user)
+    transaction.on_commit(lambda: _delete_stored_files(files))
     audit("child.data_erased", actor=parent.user, target=student, request=request, **counts)
     return counts
 

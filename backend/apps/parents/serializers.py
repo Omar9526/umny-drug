@@ -9,10 +9,6 @@ from apps.tutor.serializers import SessionSummarySerializer
 from .models import ParentNotification
 
 
-class SubjectBriefField(serializers.DictField):
-    pass
-
-
 class DifficultTopicSerializer(serializers.Serializer):
     topic_id = serializers.IntegerField()
     name = serializers.CharField()

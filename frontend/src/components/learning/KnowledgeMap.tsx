@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "motion/react";
@@ -138,6 +138,15 @@ export function KnowledgeMap({
   const selected =
     map.nodes.find((node) => node.topic_id === selectedId) ?? null;
 
+  useEffect(() => {
+    if (selectedId === null) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId]);
+
   return (
     <div className={cn("flex flex-col", className)}>
       {sections.map((section, sectionIndex) => {
@@ -242,6 +251,7 @@ export function KnowledgeMap({
           <motion.div
             key={selected.topic_id}
             role="dialog"
+            aria-modal="false"
             aria-label={selected.name}
             initial={{ y: 48, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -295,7 +305,7 @@ export function KnowledgeMap({
                 type="button"
                 aria-label={tm("close")}
                 onClick={() => setSelectedId(null)}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition hover:bg-line"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition hover:bg-line"
               >
                 <X className="size-4" />
               </button>

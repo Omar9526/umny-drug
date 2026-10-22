@@ -22,6 +22,7 @@ from apps.accounts.serializers import (
 )
 from apps.core.pagination import DefaultPagination
 from apps.core.permissions import IsParent
+from apps.core.throttles import AuthRateThrottle
 from apps.tutor.models import LearningSession
 from apps.tutor.queries import session_queryset
 from apps.tutor.serializers import SessionDetailSerializer, SessionSummarySerializer
@@ -43,6 +44,8 @@ def _parent_for(request) -> ParentProfile:
 
 @extend_schema(tags=["parents"])
 class ChildrenViewSet(ViewSet):
+    # per-action scoped throttling (DRF only accepts action kwargs that exist on the class)
+    throttle_scope: str | None = None
     """Children of the calling parent's family. Lookups are always scoped by family (no IDOR)."""
 
     permission_classes = (IsAuthenticated, IsParent)
@@ -158,10 +161,16 @@ class ChildrenViewSet(ViewSet):
         return Response(data)
 
     @extend_schema(request=None, responses={200: dict})
-    @action(detail=True, methods=["post"], url_path="erase")
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="erase",
+        throttle_classes=[AuthRateThrottle],
+        throttle_scope="auth",
+    )
     def erase(self, request, pk=None):
         parent = _parent_for(request)
-        student = services.child_for(parent, pk)
+        student = services.child_for_erase(parent, pk)
         counts = services.erase_child_data(parent=parent, student=student, request=request)
         return Response({"erased": counts})
 
@@ -224,6 +233,9 @@ class FamilySettingsView(APIView):
 @extend_schema(tags=["parents"], request=FamilyDeleteSerializer, responses={200: dict})
 class FamilyDeleteView(APIView):
     permission_classes = (IsAuthenticated, IsParent)
+    # the password check must not be brute-forceable with a stolen access token
+    throttle_classes = (AuthRateThrottle,)
+    throttle_scope = "auth"
 
     def post(self, request):
         parent = _parent_for(request)

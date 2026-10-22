@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { motion } from "motion/react";
 import { Bell, Home, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/Logo";
@@ -17,8 +18,9 @@ const NAV = [
 ] as const;
 
 /**
- * Parent shell: same phone-first layout as the student app (bottom tabs on small screens,
- * left rail on desktop) with an unread-notifications badge.
+ * Parent shell: the same visual language as the student app — a floating dark-teal pill bar on
+ * phones (active tab slides into a white pill with its label) and a left rail on desktop — plus an
+ * unread-notifications badge.
  */
 export function ParentShell({ children }: { children: React.ReactNode }) {
   const t = useTranslations("nav");
@@ -45,7 +47,7 @@ export function ParentShell({ children }: { children: React.ReactNode }) {
       <span
         aria-label={`${unread}`}
         className={cn(
-          "absolute flex min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] font-bold leading-5 text-white",
+          "absolute flex min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[11px] leading-5 font-bold text-white ring-2 ring-teal",
           className,
         )}
       >
@@ -58,7 +60,7 @@ export function ParentShell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto flex w-full max-w-6xl flex-1 md:gap-8 md:px-6 md:py-6">
       <aside className="sticky top-6 hidden h-[calc(100dvh-3rem)] w-60 shrink-0 flex-col rounded-3xl bg-white p-4 shadow-card md:flex">
         <Logo className="px-2 py-2" />
-        <nav className="mt-6 flex flex-col gap-1" aria-label="Навигация родителя">
+        <nav className="mt-6 flex flex-col gap-1" aria-label={t("parentMenu")}>
           {NAV.map(({ href, key, icon: Icon }) => (
             <Link
               key={href}
@@ -66,12 +68,12 @@ export function ParentShell({ children }: { children: React.ReactNode }) {
               aria-current={isActive(href) ? "page" : undefined}
               className={cn(
                 "relative flex h-12 items-center gap-3 rounded-2xl px-3 text-base font-semibold transition-colors",
-                isActive(href) ? "bg-lime text-ink" : "text-foreground/80 hover:bg-muted",
+                isActive(href) ? "bg-teal text-white" : "text-foreground/80 hover:bg-lime-pale",
               )}
             >
               <Icon className="size-5" />
               {t(key)}
-              {key === "notifications" && <Badge className="right-3" />}
+              {key === "notifications" && <Badge className="right-3 ring-white" />}
             </Link>
           ))}
         </nav>
@@ -84,37 +86,43 @@ export function ParentShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-28 md:px-0 md:pb-8">{children}</main>
+        <main className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-32 md:px-0 md:pb-8">{children}</main>
       </div>
 
       <nav
-        aria-label="Навигация родителя"
-        className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white/95 backdrop-blur md:hidden"
+        aria-label={t("parentMenu")}
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(env(safe-area-inset-bottom),12px)] md:hidden"
       >
-        <ul className="mx-auto grid max-w-2xl grid-cols-3 px-2">
+        <ul className="pointer-events-auto mx-auto flex max-w-md items-center gap-1 rounded-full bg-teal p-1.5 shadow-float">
           {NAV.map(({ href, key, icon: Icon }) => {
             const active = isActive(href);
             return (
-              <li key={href} className="flex justify-center">
+              <li key={href} className={cn("min-w-0", active ? "flex-1" : "w-16 shrink-0")}>
                 <Link
                   href={href}
                   aria-current={active ? "page" : undefined}
                   aria-label={t(key)}
-                  className={cn(
-                    "flex min-w-[72px] flex-col items-center gap-1 py-2 text-[11px] font-semibold",
-                    active ? "text-teal" : "text-muted-foreground",
-                  )}
+                  className="relative flex h-12 items-center justify-center rounded-full"
                 >
+                  {active && (
+                    <motion.span
+                      layoutId="parent-nav-pill"
+                      className="absolute inset-0 rounded-full bg-white"
+                      transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                    />
+                  )}
                   <span
                     className={cn(
-                      "relative flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-                      active && "bg-lime",
+                      "relative flex min-w-0 items-center gap-2 px-2",
+                      active ? "text-teal" : "text-white/85",
                     )}
                   >
-                    <Icon className="size-5" />
-                    {key === "notifications" && <Badge className="-top-1 -right-1" />}
+                    <span className="relative">
+                      <Icon className="size-5" />
+                      {key === "notifications" && <Badge className="-top-2 -right-3" />}
+                    </span>
+                    {active && <span className="truncate text-sm font-bold">{t(key)}</span>}
                   </span>
-                  <span>{t(key)}</span>
                 </Link>
               </li>
             );

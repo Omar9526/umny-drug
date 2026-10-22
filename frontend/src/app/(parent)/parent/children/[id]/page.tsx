@@ -18,6 +18,7 @@ import {
   EmptyState,
   ErrorState,
 } from "@/components/feedback/States";
+import { Contours } from "@/components/layout/Hero";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { SessionCard } from "@/components/cards/SessionCard";
 import {
@@ -99,37 +100,40 @@ export default function ChildProgressPage({
         }
       />
 
-      <section className="rounded-[28px] bg-white p-5 shadow-card ring-1 ring-line">
-        <div className="flex items-center gap-3">
-          <ChildAvatar avatar={child.avatar} size="lg" />
-          <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-extrabold">{t("report")}</h2>
-            <p className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
-              <CalendarDays className="size-3.5" /> {period}
-            </p>
+      <section className="rise-in relative overflow-hidden rounded-[32px] bg-lime p-5 shadow-card">
+        <Contours className="-top-12 -right-16 h-72 w-72" />
+        <div className="relative">
+          <div className="flex items-center gap-3">
+            <ChildAvatar avatar={child.avatar} size="lg" className="ring-4 ring-white" />
+            <div className="min-w-0 flex-1">
+              <h2 className="font-heading text-lg font-extrabold text-teal">{t("report")}</h2>
+              <p className="flex items-center gap-1 text-xs font-semibold text-ink/70">
+                <CalendarDays className="size-3.5" /> {period}
+              </p>
+            </div>
           </div>
+          <p className="mt-4 text-base leading-relaxed text-ink">{report.text}</p>
+          {report.has_data && (
+            <WeekTiles
+              className="mt-4"
+              independent={report.independent}
+              withHelp={report.with_help}
+              needsReview={report.needs_review}
+            />
+          )}
+          {summary.sessions_total > 0 && (
+            <p className="mt-4 text-xs font-semibold text-ink/70">
+              {t("totals", {
+                total: summary.sessions_total,
+                independent: summary.independent_total,
+              })}
+            </p>
+          )}
         </div>
-        <p className="mt-4 text-base leading-relaxed">{report.text}</p>
-        {report.has_data && (
-          <WeekTiles
-            className="mt-4"
-            independent={report.independent}
-            withHelp={report.with_help}
-            needsReview={report.needs_review}
-          />
-        )}
-        {summary.sessions_total > 0 && (
-          <p className="mt-4 text-xs text-muted-foreground">
-            {t("totals", {
-              total: summary.sessions_total,
-              independent: summary.independent_total,
-            })}
-          </p>
-        )}
       </section>
 
       <section>
-        <h2 className="mb-3 text-lg font-extrabold">{t("recommendations")}</h2>
+        <h2 className="mb-3 font-heading text-lg font-extrabold">{t("recommendations")}</h2>
         {recommendations.length === 0 ? (
           <EmptyState
             icon={<Sparkles />}
@@ -154,7 +158,7 @@ export default function ChildProgressPage({
 
       {subjects.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-extrabold">{t("subjects")}</h2>
+          <h2 className="mb-3 font-heading text-lg font-extrabold">{t("subjects")}</h2>
           <ul className="flex flex-col gap-3">
             {subjects.map((row) => (
               <SubjectRow key={row.subject.id} row={row} />
@@ -178,7 +182,7 @@ export default function ChildProgressPage({
 
       {recent_quizzes.length > 0 && (
         <section>
-          <h2 className="mb-3 text-lg font-extrabold">{t("quizzes")}</h2>
+          <h2 className="mb-3 font-heading text-lg font-extrabold">{t("quizzes")}</h2>
           <ul className="flex flex-col gap-2">
             {recent_quizzes.map((quiz) => (
               <li
@@ -221,7 +225,7 @@ export default function ChildProgressPage({
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold">{t("recent")}</h2>
+          <h2 className="font-heading text-lg font-extrabold">{t("recent")}</h2>
           {recent_sessions.length > 0 && (
             <Link
               href={`/parent/children/${id}/sessions`}

@@ -187,3 +187,21 @@ def test_recognition_bounds_one_attempt(settings):
     assert config.http_options.retry_options.attempts == 3
     assert models.calls[0]["model"] == "gemini-vision-test"
     assert len(models.calls[0]["contents"][0].parts) == 2  # image + prompt
+
+
+def test_bad_api_key_maps_to_auth_even_as_400():
+    err = genai_errors.ClientError(
+        400, {"error": {"message": "API key not valid. Please pass a valid API key."}}
+    )
+    assert _map_error(err).code == "auth"
+    assert (
+        _map_error(genai_errors.ClientError(400, {"error": {"message": "bad schema"}})).code == "bad_request"
+    )
+
+
+def test_cached_tokens_are_not_double_counted():
+    usage = _usage_from(
+        SimpleNamespace(usage_metadata=_usage(prompt=100, cached=40), model_version=""), "m", 0.0
+    )
+    assert usage.input_tokens == 60
+    assert usage.cache_read_tokens == 40

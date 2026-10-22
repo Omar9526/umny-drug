@@ -37,6 +37,7 @@ export default function TopicPage({ params }: PageProps<"/topics/[id]">) {
   const topicId = Number(id);
   const t = useTranslations("topic");
   const ts = useTranslations("subjects");
+  const ta = useTranslations("app");
   const format = useFormatter();
   const router = useRouter();
   const topic = useTopic(Number.isFinite(topicId) ? topicId : null);
@@ -66,10 +67,8 @@ export default function TopicPage({ params }: PageProps<"/topics/[id]">) {
       const attempt = await startQuiz.mutateAsync(topic.data.id);
       router.push(`/quizzes/${attempt.id}`);
     } catch (error) {
-      if (
-        error instanceof ApiError &&
-        (error.code === "demo_mode" || error.code === "budget_exceeded")
-      ) {
+      if (error instanceof ApiError && error.status === 409) {
+        // demo_mode, budget_exceeded, family_budget_exceeded, student_limit_exceeded, quiz_generating
         setQuizNotice(error.message);
         return;
       }
@@ -87,7 +86,7 @@ export default function TopicPage({ params }: PageProps<"/topics/[id]">) {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            aria-label="Назад"
+            aria-label={ta("back")}
             onClick={() => router.push(backHref)}
             className={roundButtonClass()}
           >
@@ -129,8 +128,8 @@ export default function TopicPage({ params }: PageProps<"/topics/[id]">) {
         )}
       </Hero>
 
-      {topic.isPending && <CardSkeleton lines={4} />}
-      {topic.isError && (
+      {topic.isLoading && <CardSkeleton lines={4} />}
+      {(topic.isError || !Number.isFinite(topicId)) && (
         <ErrorState error={topic.error} onRetry={() => topic.refetch()} />
       )}
 

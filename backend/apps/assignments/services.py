@@ -191,6 +191,14 @@ def recognize_upload(upload_id: str) -> AssignmentUpload:
             subjects=_subject_options(student),
         )
     except AIProviderError as exc:
+        if exc.usage is not None:  # refusals and invalid output are billed too
+            record_usage(
+                purpose="recognition",
+                usage=exc.usage,
+                provider=provider.name,
+                family=upload.family,
+                student=student,
+            )
         upload.status = AssignmentUpload.Status.FAILED
         upload.error_code = exc.code
         upload.error_message = str(exc)
@@ -265,6 +273,7 @@ def recognize_upload(upload_id: str) -> AssignmentUpload:
 
 
 STALE_PROCESSING_MINUTES = 10
+MAX_RETRIES = 3  # retries of one upload; each one is a billed model call
 
 
 def retry_upload(upload: AssignmentUpload) -> AssignmentUpload:
@@ -276,10 +285,17 @@ def retry_upload(upload: AssignmentUpload) -> AssignmentUpload:
         raise DomainError(
             "Повторить можно только неудавшуюся загрузку.", code="not_retryable", status_code=409
         )
+    if upload.retry_count >= MAX_RETRIES:
+        raise DomainError(
+            "Эту загрузку уже повторяли несколько раз. Сфотографируй задание ещё раз.",
+            code="retry_limit",
+            status_code=409,
+        )
     upload.status = AssignmentUpload.Status.PENDING
     upload.error_code = ""
     upload.error_message = ""
-    upload.save(update_fields=["status", "error_code", "error_message", "updated_at"])
+    upload.retry_count += 1
+    upload.save(update_fields=["status", "error_code", "error_message", "retry_count", "updated_at"])
     enqueue_recognition(upload)
     return upload
 

@@ -595,6 +595,8 @@ export interface QuizResult {
   correct: boolean;
   explanation: string;
   correct_answer: string;
+  /** Option keys of the right answer (choice questions); older rows may lack it. */
+  correct_keys?: string[];
   checked_at: string;
 }
 
@@ -621,6 +623,7 @@ export interface QuizAnswerResponse {
   correct: boolean;
   explanation: string;
   correct_answer: string;
+  correct_keys?: string[];
   answered: number;
   total: number;
 }

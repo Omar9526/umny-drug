@@ -339,3 +339,48 @@ def test_delete_family_requires_password_and_closes_every_account():
         "/api/v1/auth/login/", {"email": "parent@example.com", "password": "Strong-pass-123"}, format="json"
     )
     assert login.status_code in (400, 401)
+
+
+def test_erase_reaches_deactivated_child_and_removes_assignments(fake_provider):  # noqa: F811
+    from apps.assignments.models import Assignment
+
+    fam = make_family()
+    child_id = fam["child"]["id"]
+    typed = fam["student"].post(
+        "/api/v1/assignments/upload/", {"source": "text", "typed_text": "2 + 2 = ?"}, format="multipart"
+    )
+    assert typed.status_code == 201, typed.content
+    before = Assignment.objects.filter(student_id=child_id).count()
+    assert before >= 1
+
+    # DELETE only deactivates; erase must still be possible afterwards
+    assert fam["parent"].delete(f"/api/v1/parents/children/{child_id}/").status_code == 204
+    erased = fam["parent"].post(f"/api/v1/parents/children/{child_id}/erase/")
+    assert erased.status_code == 200, erased.content
+    assert erased.json()["erased"]["assignments"] == before
+    assert Assignment.objects.filter(student_id=child_id).count() == 0
+
+
+def test_restricted_child_needs_a_topic_for_topic_modes(fake_provider):  # noqa: F811
+    fam = make_family()
+    child_id = fam["child"]["id"]
+    patched = fam["parent"].patch(
+        f"/api/v1/parents/children/{child_id}/", {"allow_free_questions": False}, format="json"
+    )
+    assert patched.status_code == 200, patched.content
+    free_chat = fam["student"].post(
+        "/api/v1/tutor/sessions/",
+        {"mode": "explain_topic", "subject_slug": "math", "question": ""},
+        format="json",
+    )
+    assert free_chat.status_code == 403
+    assert free_chat.json()["error"]["code"] == "feature_disabled"
+    topic = (
+        Topic.objects.filter(section__subject__slug="math", section__grade__number=5).order_by("id").first()
+    )
+    with_topic = fam["student"].post(
+        "/api/v1/tutor/sessions/",
+        {"mode": "explain_topic", "subject_slug": "math", "topic_id": topic.id, "question": ""},
+        format="json",
+    )
+    assert with_topic.status_code == 201, with_topic.content

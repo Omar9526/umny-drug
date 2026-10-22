@@ -55,7 +55,7 @@ export function QuizProgressGrid({
           <li key={question.id}>
             <button
               type="button"
-              aria-label={t("goTo", { n: index + 1 })}
+              aria-label={`${t("goTo", { n: index + 1 })}: ${t(`legend.${state === "open" ? "skipped" : state}`)}`}
               aria-current={state === "current" ? "step" : undefined}
               onClick={() => onSelect?.(index)}
               disabled={!onSelect}

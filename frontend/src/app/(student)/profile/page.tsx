@@ -7,7 +7,7 @@ import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChildAvatar } from "@/components/brand/ChildAvatar";
 import { AvatarPicker, GradePicker, LanguageToggle } from "@/components/forms/pickers";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { Hero } from "@/components/layout/Hero";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { useCurricula } from "@/features/curriculum/api";
 import { useUpdateStudent, type StudentUpdateInput } from "@/features/dashboard/api";
@@ -50,23 +50,24 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader title={t("title")} back={false} />
-
-      <section className="flex items-center gap-4 rounded-[28px] bg-lime p-5">
-        <ChildAvatar avatar={student.avatar} size="xl" />
-        <div>
-          <h2 className="text-2xl font-extrabold text-teal">{student.nickname}</h2>
-          <p className="text-base font-semibold text-ink/80">{th("grade", { grade: student.grade.number })}</p>
+      <Hero>
+        <p className="text-sm font-semibold text-ink/70">{t("title")}</p>
+        <div className="mt-3 flex items-center gap-4">
+          <ChildAvatar avatar={student.avatar} size="xl" className="pop-in ring-4 ring-white shadow-tile" />
+          <div className="min-w-0">
+            <h1 className="truncate font-heading text-[30px] leading-tight font-extrabold text-teal">{student.nickname}</h1>
+            <p className="text-base font-semibold text-ink/75">{th("grade", { grade: student.grade.number })}</p>
+          </div>
         </div>
-      </section>
+      </Hero>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-lg font-extrabold">{t("avatar")}</h3>
+        <h3 className="font-heading text-lg font-extrabold">{t("avatar")}</h3>
         <AvatarPicker value={student.avatar} onChange={(avatar) => save({ avatar })} />
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-lg font-extrabold">{t("explanationLanguage")}</h3>
+        <h3 className="font-heading text-lg font-extrabold">{t("explanationLanguage")}</h3>
         <LanguageToggle
           name={t("explanationLanguage")}
           value={student.explanation_language}
@@ -75,12 +76,12 @@ export default function ProfilePage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-lg font-extrabold">{t("interfaceLanguage")}</h3>
+        <h3 className="font-heading text-lg font-extrabold">{t("interfaceLanguage")}</h3>
         <LanguageToggle name={t("interfaceLanguage")} value={locale} onChange={changeInterfaceLanguage} />
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="text-lg font-extrabold">{t("grade")}</h3>
+        <h3 className="font-heading text-lg font-extrabold">{t("grade")}</h3>
         {grades.length > 0 && (
           <GradePicker grades={grades} value={student.grade.id} onChange={(grade_id) => save({ grade_id })} />
         )}

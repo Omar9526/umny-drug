@@ -47,6 +47,8 @@ SESSION_OPENER = "Начинаем занятие."
 # and let the SDK retry twice (measured: a retry after a stall answers in ~3 s).
 RECOGNITION_TIMEOUT_S = 12
 RECOGNITION_ATTEMPTS = 3
+# Assessment and quiz generation: a stalled attempt must not hold a worker for the full 90 s.
+STRUCTURED_TIMEOUT_S = 30
 
 
 class Criterion(BaseModel):
@@ -106,11 +108,13 @@ def _text_parts(chunk) -> str:
 def _usage_from(response, model: str, started: float) -> Usage:
     raw = getattr(response, "usage_metadata", None)
     get = lambda name: getattr(raw, name, 0) or 0  # noqa: E731
+    cached = get("cached_content_token_count")
     usage = Usage(
-        input_tokens=get("prompt_token_count"),
+        # prompt_token_count already includes the cached part; keep input = uncached, like Anthropic
+        input_tokens=max(get("prompt_token_count") - cached, 0),
         # Thinking tokens are billed as output.
         output_tokens=get("candidates_token_count") + get("thoughts_token_count"),
-        cache_read_tokens=get("cached_content_token_count"),
+        cache_read_tokens=cached,
         model=getattr(response, "model_version", None) or model,
         latency_ms=int((time.monotonic() - started) * 1000),
     )
@@ -131,6 +135,8 @@ def _map_error(exc: Exception) -> AIProviderError:
             )
         if status == 404:
             return AIProviderError("Модель AI-провайдера недоступна.", code="bad_request")
+        if status == 400 and "api key" in str(exc).lower():  # the Developer API answers 400 to a bad key
+            return AIProviderError("AI-провайдер отклонил ключ доступа.", code="auth")
         if 400 <= status < 500:
             return AIProviderError("Запрос к AI не принят. Мы уже разбираемся.", code="bad_request")
         return AIProviderError("AI-провайдер временно недоступен.", code=f"http_{status}", retryable=True)
@@ -181,7 +187,7 @@ class GeminiProvider:
             api_key=settings.GEMINI_API_KEY,
             http_options=types.HttpOptions(
                 timeout=settings.AI_REQUEST_TIMEOUT_SECONDS * 1000,
-                retry_options=types.HttpRetryOptions(attempts=3),
+                retry_options=types.HttpRetryOptions(attempts=2),
             ),
         )
 
@@ -195,6 +201,7 @@ class GeminiProvider:
         max_tokens: int,
         level: str,
         timeout_s: float | None = None,
+        attempts: int = 2,
     ):
         """One JSON-constrained call; returns (parsed instance, usage) or raises a domain error.
 
@@ -205,7 +212,7 @@ class GeminiProvider:
         http_options = (
             types.HttpOptions(
                 timeout=int(timeout_s * 1000),
-                retry_options=types.HttpRetryOptions(attempts=RECOGNITION_ATTEMPTS),
+                retry_options=types.HttpRetryOptions(attempts=attempts),
             )
             if timeout_s
             else None
@@ -273,6 +280,7 @@ class GeminiProvider:
             max_tokens=8000,
             level="low",
             timeout_s=RECOGNITION_TIMEOUT_S,
+            attempts=RECOGNITION_ATTEMPTS,
         )
         return parsed, usage
 
@@ -353,6 +361,7 @@ class GeminiProvider:
             schema=GeminiAssessment,
             max_tokens=4000,
             level="low",
+            timeout_s=STRUCTURED_TIMEOUT_S,
         )
         return parsed.to_result(), usage
 
@@ -365,6 +374,7 @@ class GeminiProvider:
             schema=QuizSpec,
             max_tokens=4000,
             level=settings.GEMINI_THINKING_LEVEL,
+            timeout_s=STRUCTURED_TIMEOUT_S,
         )
         if len(spec.questions) != request.count:
             spec = QuizSpec(title=spec.title, questions=spec.questions[: max(3, request.count)])

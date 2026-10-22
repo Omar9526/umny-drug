@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto flex w-full max-w-6xl flex-1 md:gap-8 md:px-6 md:py-6">
       <aside className="sticky top-6 hidden h-[calc(100dvh-3rem)] w-60 shrink-0 flex-col rounded-3xl bg-white p-4 shadow-card md:flex">
         <Logo className="px-2 py-2" />
-        <nav className="mt-6 flex flex-col gap-1" aria-label="Основная навигация">
+        <nav className="mt-6 flex flex-col gap-1" aria-label={t("studentMenu")}>
           {NAV.map(({ href, key, icon: Icon }) => (
             <Link
               key={href}
@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav
-        aria-label="Основная навигация"
+        aria-label={t("studentMenu")}
         className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(env(safe-area-inset-bottom),12px)] md:hidden"
       >
         <ul className="pointer-events-auto mx-auto flex max-w-md items-center gap-1 rounded-full bg-teal p-1.5 shadow-float">

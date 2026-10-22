@@ -56,12 +56,21 @@ class SessionCreateView(APIView):
         serializer = CreateSessionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        if data["mode"] in ("question", "check_answer") and not student.allow_free_questions:
-            raise DomainError(
-                "Родители ограничили свободные вопросы. Сфотографируй домашнее задание или выбери тему.",
-                code="feature_disabled",
-                status_code=403,
-            )
+        if not student.allow_free_questions:
+            if data["mode"] in ("question", "check_answer"):
+                raise DomainError(
+                    "Родители ограничили свободные вопросы. Сфотографируй домашнее задание или выбери тему.",
+                    code="feature_disabled",
+                    status_code=403,
+                )
+            if not data.get(
+                "topic_id"
+            ):  # explain_topic / exam_prep / practice without a topic is a free chat
+                raise DomainError(
+                    "Родители ограничили свободные вопросы. Выбери тему на карте знаний.",
+                    code="feature_disabled",
+                    status_code=403,
+                )
         subject = None
         topic = None
         if data.get("subject_slug"):

@@ -49,6 +49,7 @@ class AssignmentUpload(UUIDModel, TimeStampedModel):
     error_message = models.CharField(max_length=255, blank=True)
     processed_at = models.DateTimeField(null=True, blank=True)
     provider = models.CharField(max_length=32, blank=True)
+    retry_count = models.PositiveSmallIntegerField(default=0)
     model = models.CharField(max_length=64, blank=True)
     input_tokens = models.PositiveIntegerField(default=0)
     output_tokens = models.PositiveIntegerField(default=0)

@@ -37,13 +37,13 @@ export function WeekTiles({
     {
       key: "independent",
       value: independent,
-      tone: "bg-success/10 text-success",
+      tone: "bg-white text-success ring-1 ring-success/20",
     },
-    { key: "withHelp", value: withHelp, tone: "bg-lime text-ink" },
+    { key: "withHelp", value: withHelp, tone: "bg-white text-teal ring-1 ring-teal/15" },
     {
       key: "needsReview",
       value: needsReview,
-      tone: "bg-warning/15 text-warning",
+      tone: "bg-peach text-[#8a4b00] ring-1 ring-warning/20",
     },
   ] as const;
   return (
@@ -51,7 +51,7 @@ export function WeekTiles({
       {tiles.map((tile) => (
         <div
           key={tile.key}
-          className={cn("rounded-2xl px-3 py-3 text-center", tile.tone)}
+          className={cn("rounded-[20px] px-3 py-3 text-center", tile.tone)}
         >
           <p className="font-heading text-2xl font-extrabold leading-none">
             {tile.value}

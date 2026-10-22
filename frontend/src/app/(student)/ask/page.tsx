@@ -56,9 +56,13 @@ function AskScreen() {
 
   const effectiveSubject = topic.data?.subject.slug ?? subjectSlug;
   const requiresText = mode === "question" || mode === "check_answer";
+  // with free questions switched off by the parent, topic-based modes need a concrete topic
+  const topicRequired = !freeQuestionsAllowed && !requiresText && !topicId;
   const canStart = requiresText
     ? question.trim().length >= 3
-    : Boolean(effectiveSubject || topicId);
+    : topicRequired
+      ? false
+      : Boolean(effectiveSubject || topicId);
 
   async function start() {
     const body: CreateSessionInput = {
@@ -134,6 +138,15 @@ function AskScreen() {
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {topicRequired && (
+        <section className="rounded-3xl bg-peach px-4 py-3 text-sm font-semibold text-[#8a4b00]">
+          {t("topicRequired")}{" "}
+          <Link href="/subjects" className="font-bold text-teal underline">
+            {t("pickTopic")}
+          </Link>
         </section>
       )}
 

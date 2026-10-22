@@ -86,11 +86,14 @@ function QuestionCard({
   question,
   index,
   onAdvance,
+  advancing = false,
 }: {
   attempt: QuizAttempt;
   question: QuizQuestion;
   index: number;
   onAdvance: () => void;
+  /** True while the finish request is in flight: a double tap must not send it twice. */
+  advancing?: boolean;
 }) {
   const t = useTranslations("quiz");
   const answer = useAnswerQuestion(attempt.id);
@@ -140,9 +143,11 @@ function QuestionCard({
                   ? given.includes(option.key)
                   : given === option.key
                 : selected.includes(option.key);
-              const isCorrectOption =
-                result &&
-                result.correct_answer.split(", ").includes(option.text);
+              const isCorrectOption = result
+                ? result.correct_keys
+                  ? result.correct_keys.includes(option.key)
+                  : result.correct_answer.split(", ").includes(option.text)
+                : false;
               return (
                 <li key={option.key}>
                   <button
@@ -251,7 +256,7 @@ function QuestionCard({
 
       <div className="mt-4 flex gap-3">
         {result ? (
-          <Button size="xl" className="w-full" onClick={onAdvance}>
+          <Button size="xl" className="w-full" onClick={onAdvance} disabled={advancing}>
             {isLast ? t("finish") : t("next")} <ArrowRight />
           </Button>
         ) : (
@@ -261,7 +266,7 @@ function QuestionCard({
               size="xl"
               className="flex-1 bg-white"
               onClick={onAdvance}
-              disabled={answer.isPending}
+              disabled={answer.isPending || advancing}
             >
               {isLast ? t("finish") : t("skip")}
             </Button>
@@ -453,6 +458,7 @@ function QuizRunner({ attempt }: { attempt: QuizAttempt }) {
           question={question}
           index={current}
           onAdvance={advance}
+          advancing={finish.isPending}
         />
       )}
     </>

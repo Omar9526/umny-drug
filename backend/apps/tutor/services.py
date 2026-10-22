@@ -18,7 +18,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from ai.base import AIProviderError, TutorContext
+from ai.base import AIProviderError, TutorContext, Usage
 from ai.costs import ensure_budget, record_usage
 from ai.registry import get_provider
 from ai.verifiers.math import verify_math
@@ -267,6 +267,14 @@ def run_turn(*, session: LearningSession, command: str, content: str, request=No
                 usage = chunk.usage
     except GeneratorExit:
         stream.close()  # client went away: stop pulling tokens from the provider
+        if usage is None:
+            # Tokens are unknown, but the call was made and billed: keep it in the daily call count.
+            _record(
+                Usage(model="aborted", latency_ms=int((time.monotonic() - started) * 1000)),
+                provider,
+                session,
+                "tutor",
+            )
         raise
     except AIProviderError as exc:
         if exc.usage is not None:

@@ -106,6 +106,8 @@ class ImageView(APIView):
         qs = AssignmentImage.objects.select_related("upload")
         if not user.is_admin_role:
             qs = qs.filter(upload__family_id=user.family_id)
+            if getattr(user, "role", "") == "student":  # siblings do not see each other's photos
+                qs = qs.filter(upload__student__user=user)
         image = get_object_or_404(qs, pk=pk)
         if not image.is_available:
             return Response({"error": {"code": "gone", "message": "Срок хранения фото истёк."}}, status=410)

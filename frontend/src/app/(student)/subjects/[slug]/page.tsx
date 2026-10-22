@@ -38,6 +38,7 @@ export default function SubjectPage({ params }: PageProps<"/subjects/[slug]">) {
   const t = useTranslations("subjects");
   const tm = useTranslations("map");
   const th = useTranslations("home");
+  const ta = useTranslations("app");
   const router = useRouter();
   const [view, setView] = useState<View>("map");
   const subject = useSubject(slug);
@@ -77,7 +78,7 @@ export default function SubjectPage({ params }: PageProps<"/subjects/[slug]">) {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            aria-label="Назад"
+            aria-label={ta("back")}
             onClick={() => router.push("/subjects")}
             className={roundButtonClass()}
           >
