@@ -42,9 +42,10 @@ def _usage(prompt=10, out=20, thoughts=5, cached=0):
 
 
 class FakeModels:
-    def __init__(self, *, chunks=None, response=None):
+    def __init__(self, *, chunks=None, response=None, responses=None):
         self.chunks = chunks or []
         self.response = response
+        self.responses = list(responses or [])  # one per call, exceptions are raised
         self.calls: list[dict] = []
 
     def generate_content_stream(self, **kwargs):
@@ -53,9 +54,10 @@ class FakeModels:
 
     def generate_content(self, **kwargs):
         self.calls.append(kwargs)
-        if isinstance(self.response, Exception):
-            raise self.response
-        return self.response
+        result = self.responses.pop(0) if self.responses else self.response
+        if isinstance(result, Exception):
+            raise result
+        return result
 
 
 def _provider(models: FakeModels) -> GeminiProvider:
@@ -205,3 +207,49 @@ def test_cached_tokens_are_not_double_counted():
     )
     assert usage.input_tokens == 60
     assert usage.cache_read_tokens == 40
+
+
+def test_recognition_falls_back_to_the_main_model_after_a_stall(settings):
+    settings.GEMINI_MODEL_VISION = "gemini-lite-test"
+    settings.GEMINI_MODEL = "gemini-main-test"
+    from ai.base import ImageInput, SubjectOption
+    from ai.schemas import RecognitionResult
+
+    ok = SimpleNamespace(
+        parsed=RecognitionResult(readable=True, tasks=[]),
+        candidates=[],
+        prompt_feedback=None,
+        usage_metadata=_usage(),
+        text="",
+    )
+    models = FakeModels(
+        responses=[genai_errors.ServerError(504, {"error": {"message": "gateway timeout"}}), ok]
+    )
+    result, usage = _provider(models).recognize(
+        [ImageInput(b"jpg", "image/jpeg")], "", "ru", 5, [SubjectOption("math", "М")]
+    )
+    assert result.readable is True
+    assert [c["model"] for c in models.calls] == ["gemini-lite-test", "gemini-main-test"]
+    assert models.calls[1]["config"].http_options.timeout == 25_000
+    assert usage.model == "gemini-main-test"
+
+
+def test_recognition_does_not_fall_back_on_refusal(settings):
+    settings.GEMINI_MODEL_VISION = "gemini-lite-test"
+    settings.GEMINI_MODEL = "gemini-main-test"
+    from ai.base import ImageInput, SubjectOption
+
+    blocked = SimpleNamespace(
+        parsed=None,
+        candidates=[SimpleNamespace(content=None, finish_reason=SimpleNamespace(name="SAFETY"))],
+        prompt_feedback=None,
+        usage_metadata=_usage(),
+        text="",
+    )
+    models = FakeModels(responses=[blocked])
+    with pytest.raises(AIProviderError) as info:
+        _provider(models).recognize(
+            [ImageInput(b"jpg", "image/jpeg")], "", "ru", 5, [SubjectOption("math", "М")]
+        )
+    assert info.value.code == "refused"
+    assert len(models.calls) == 1  # a refusal is final, not retried on another model

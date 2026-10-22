@@ -47,6 +47,9 @@ SESSION_OPENER = "Начинаем занятие."
 # and let the SDK retry twice (measured: a retry after a stall answers in ~3 s).
 RECOGNITION_TIMEOUT_S = 12
 RECOGNITION_ATTEMPTS = 3
+# When every attempt on the lite model stalls or 5xx-es, one more try on the main model: the stalls are
+# model-specific on Google's side, and a different model usually answers in seconds.
+RECOGNITION_FALLBACK_TIMEOUT_S = 25
 # Assessment and quiz generation: a stalled attempt must not hold a worker for the full 90 s.
 STRUCTURED_TIMEOUT_S = 30
 
@@ -139,7 +142,11 @@ def _map_error(exc: Exception) -> AIProviderError:
             return AIProviderError("AI-провайдер отклонил ключ доступа.", code="auth")
         if 400 <= status < 500:
             return AIProviderError("Запрос к AI не принят. Мы уже разбираемся.", code="bad_request")
-        return AIProviderError("AI-провайдер временно недоступен.", code=f"http_{status}", retryable=True)
+        return AIProviderError(
+            "Помощник сейчас не отвечает. Нажми «Попробовать снова» через минуту.",
+            code=f"http_{status}",
+            retryable=True,
+        )
     if isinstance(exc, httpx.TimeoutException):
         return AIProviderError(
             "Помощник отвечал слишком долго. Попробуй ещё раз.", code="timeout", retryable=True
@@ -272,17 +279,39 @@ class GeminiProvider:
                 )
             )
         )
-        parsed, usage = self._structured(
-            model=settings.GEMINI_MODEL_VISION,
-            system=RECOGNITION_SYSTEM,
-            contents=[types.Content(role="user", parts=parts)],
-            schema=RecognitionResult,
-            max_tokens=8000,
-            level="low",
-            timeout_s=RECOGNITION_TIMEOUT_S,
-            attempts=RECOGNITION_ATTEMPTS,
-        )
-        return parsed, usage
+        contents = [types.Content(role="user", parts=parts)]
+        primary, fallback = settings.GEMINI_MODEL_VISION, settings.GEMINI_MODEL
+        try:
+            return self._structured(
+                model=primary,
+                system=RECOGNITION_SYSTEM,
+                contents=contents,
+                schema=RecognitionResult,
+                max_tokens=8000,
+                level="low",
+                timeout_s=RECOGNITION_TIMEOUT_S,
+                attempts=RECOGNITION_ATTEMPTS,
+            )
+        except AIProviderError as exc:
+            if not exc.retryable or fallback == primary:
+                raise
+            logger.warning(
+                "recognition on %s failed with %s, retrying once on %s",
+                primary,
+                exc.code,
+                fallback,
+                extra={"event": "ai.recognition_fallback", "code": exc.code},
+            )
+            return self._structured(
+                model=fallback,
+                system=RECOGNITION_SYSTEM,
+                contents=contents,
+                schema=RecognitionResult,
+                max_tokens=8000,
+                level="low",
+                timeout_s=RECOGNITION_FALLBACK_TIMEOUT_S,
+                attempts=1,
+            )
 
     # ------------------------------------------------------------------ respond
     def respond(self, context: TutorContext, command: str, user_message: str) -> Iterator[StreamChunk]:
