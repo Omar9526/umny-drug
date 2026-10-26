@@ -200,6 +200,10 @@ cd frontend && npm run typecheck && npm run lint && npm test && npm run build
   проверять на `next build && next start` реальным Chrome (headless-Chrome без push-сервиса, incognito без Push API;
   профиль Playwright держать по короткому пути — длинный путь ломает CacheStorage и install SW на Windows).
   WebView обёртки Capacitor Web Push не получает — там нужен FCM/APNs (`@capacitor/push-notifications`).
+- Capacitor (2026-10-26): `frontend/capacitor.config.ts` (remote-URL режим, адрес из `CAPACITOR_SERVER_URL`, cleartext
+  только для `http://`), Android-проект в `frontend/android/` (`npx cap add android`, Capacitor 8); `android/` и `ios/`
+  исключены из ESLint и `.dockerignore`. На этой машине нет JDK/Android SDK — APK не собирался; iOS добавлять на Mac.
+  После правок `public/` или конфига — `npx cap sync android`. Подробности и список доделок — `docs/MOBILE.md`.
 - Деплой: `docs/DEPLOY.md`; мобильная обёртка: `docs/MOBILE.md`. Lock зависимостей: `backend/requirements.lock.txt`
   (снят с Windows-venv, с dev-пакетами; production-lock собрать в Linux-контейнере).
 - По релизному аудиту 2026-10-22: `.dockerignore` в обоих сервисах; compose требует все секреты (`${VAR:?}`), не публикует

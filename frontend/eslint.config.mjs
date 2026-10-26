@@ -7,6 +7,9 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // Native shells (Capacitor): generated Android/iOS projects, not app code.
+    "android/**",
+    "ios/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

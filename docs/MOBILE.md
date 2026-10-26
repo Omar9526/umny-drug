@@ -9,33 +9,36 @@ Service worker кэширует только оболочку и статику;
 (тумблер «Push на это устройство» в настройках семьи): Android и десктоп — прямо из браузера, iOS 16.4+ — только
 после установки на экран «Домой». Серверу нужны VAPID-ключи (`manage.py vapid_keys`), см. `docs/DEPLOY.md`.
 
-## Потом: обёртка Capacitor (iOS / Android)
+## Обёртка Capacitor (Android готов как проект, iOS — на Mac)
 
-Next.js здесь рендерится на сервере, поэтому Capacitor должен работать в режиме удалённого URL, а не
-статического экспорта:
+Next.js рендерится на сервере, поэтому обёртка работает в режиме удалённого URL, а не статического экспорта:
+WebView открывает развёрнутый сайт, cookies остаются first-party, API-контракт тот же. Конфигурация —
+`frontend/capacitor.config.ts` (`appId` `kg.umnydrug.app`, имя «Умный друг»); адрес берётся из переменной
+`CAPACITOR_SERVER_URL` (по умолчанию `https://app.example.kg` — заменить на реальный домен). Для проверки на
+телефоне в одной Wi-Fi можно указать `http://<ip-ноутбука>:3000`: cleartext тогда разрешается автоматически.
 
-```ts
-// capacitor.config.ts (создаётся в frontend/ командой `npx cap init`)
-const config = {
-  appId: "kg.umnydrug.app",
-  appName: "Умный друг",
-  webDir: "public",                 // формально обязателен, реально не используется
-  server: { url: "https://app.example.kg", cleartext: false },
-};
-export default config;
+Android-проект сгенерирован командой `npx cap add android` и лежит в `frontend/android/` (Capacitor 8).
+Сборка на машине разработки не проверялась: нужны JDK 17+ и Android Studio (Android SDK).
+
+```bash
+cd frontend
+CAPACITOR_SERVER_URL=https://app.<домен> npx cap sync android   # копирует public/ и capacitor.config.json
+npx cap open android                                            # Android Studio → Build → APK / AAB
 ```
 
-Что нужно сделать на этом шаге:
+iOS добавляется на Mac: `npx cap add ios && npx cap sync ios && npx cap open ios` (нужны Xcode и CocoaPods);
+пакет `@capacitor/ios` уже в зависимостях. Папки `android/` и `ios/` исключены из ESLint и Docker-образа.
 
-1. Проверить вход: refresh-cookie `SameSite=Lax` при origin `capacitor://localhost` / `https://localhost`
-   не отправляется. Варианты: открывать приложение по тому же домену (`server.url`, как выше — тогда cookie
-   обычные) или добавить обмен refresh-токена через `@capacitor/preferences` только для нативной обёртки.
-2. Камера: `@capacitor/camera` вместо `<input capture>` (качество фото и разрешения).
+Что ещё нужно до публикации:
+
+1. Камера: `@capacitor/camera` вместо `<input capture>` (качество фото и разрешения).
+2. Иконки и splash: `npx @capacitor/assets generate` из `public/icons/`.
 3. Push-уведомления родителям: WebView обёртки Web Push не получает, нужен `@capacitor/push-notifications`
    (FCM для Android, APNs для iOS — внешние проекты Firebase/Apple) и расширение `PushSubscription`/`push.deliver`
    под нативные токены. До этого push работает только в PWA.
 4. Магазины: политика конфиденциальности (`/legal/privacy`), возрастная категория, Apple «Kids Category»
    требует отсутствие трекинга и рекламы — в приложении их нет.
-5. CSP: добавить `capacitor://localhost` в `connect-src`/`img-src`, если обёртка не использует `server.url`.
+5. CSP менять не нужно, пока обёртка использует `server.url`; при переходе на локальные ассеты добавить
+   `capacitor://localhost` в `connect-src`/`img-src`.
 
 Контракт `/api/v1/` не ломать без версии: нативные приложения обновляются не сразу.

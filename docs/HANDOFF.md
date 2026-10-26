@@ -41,8 +41,9 @@ README.md, docs/DEPLOY.md, docs/MOBILE.md и этот файл docs/HANDOFF.md. 
 2. Первый деплой по docs/DEPLOY.md (Docker-стек ни разу не запускался: нет Docker на машине разработки).
 3. Юридическая вычитка frontend/src/app/legal/* (черновики с плейсхолдерами в [скобках]).
 4. Сверка тем 10–11 классов учителем и вычитка кыргызских текстов носителем (ky в сиде и messages/ky.json).
-5. Обёртка Capacitor (docs/MOBILE.md). Web Push родителям для PWA сделан 2026-10-26 (ключи — `manage.py vapid_keys`
-   в .env); нативные push (FCM/APNs) — после обёртки.
+5. Обёртка Capacitor: Android-проект сгенерирован 2026-10-26 (`frontend/android`, `capacitor.config.ts`,
+   `CAPACITOR_SERVER_URL`), сборка APK не проверена — нужны JDK и Android Studio; iOS — `npx cap add ios` на Mac;
+   камера/иконки/нативные push (FCM/APNs) — по docs/MOBILE.md. Web Push для PWA сделан (ключи — `manage.py vapid_keys`).
 6. Перевыпуск ключа Gemini (прежний засветился в переписке) и настройка SMTP для алертов.
 Начни с чтения CLAUDE.md и короткого плана на 5–7 строк, затем работай.
 ```
