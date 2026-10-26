@@ -50,7 +50,14 @@ def issue_tokens(user: User) -> tuple[str, str]:
 
 
 def revoke_user_sessions(*users: User) -> int:
-    """Blacklist every outstanding refresh token of the given users (access tokens expire in minutes)."""
+    """Blacklist every outstanding refresh token of the given users (access tokens expire in minutes).
+
+    A device whose session is revoked (stolen refresh token, deleted family) loses its push subscription as
+    well, otherwise it would keep receiving the children's notifications.
+    """
+    from apps.parents.models import PushSubscription  # parents depends on accounts; keep the import lazy
+
+    PushSubscription.objects.filter(parent__user__in=users).delete()
     revoked = 0
     for token in OutstandingToken.objects.filter(user__in=users):
         _, created = BlacklistedToken.objects.get_or_create(token=token)
@@ -268,6 +275,7 @@ def lookup_family(family_code: str) -> Family:
 
 def _notify_parents_about_lockout(student: StudentProfile, permanent: bool) -> None:
     from apps.parents.models import ParentNotification
+    from apps.parents.services import create_notification
 
     title = "Вход ребёнка заблокирован" if permanent else "Несколько неверных PIN подряд"
     body = (
@@ -275,19 +283,15 @@ def _notify_parents_about_lockout(student: StudentProfile, permanent: bool) -> N
         if permanent
         else f"{student.nickname}: вход временно приостановлен после неверных PIN."
     )
-    ParentNotification.objects.bulk_create(
-        [
-            ParentNotification(
-                parent=parent,
-                student=student,
-                kind=ParentNotification.Kind.SYSTEM,
-                title=title,
-                body=body,
-                data={"permanent": permanent},
-            )
-            for parent in student.family.parents.all()
-        ]
-    )
+    for parent in student.family.parents.all():
+        create_notification(
+            parent=parent,
+            student=student,
+            kind=ParentNotification.Kind.SYSTEM,
+            title=title,
+            body=body,
+            data={"permanent": permanent},
+        )
 
 
 def authenticate_child(*, family_code: str, student_id, pin: str, request=None) -> StudentProfile:

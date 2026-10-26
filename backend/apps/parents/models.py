@@ -33,3 +33,32 @@ class ParentNotification(UUIDModel, TimeStampedModel):
 
     def __str__(self) -> str:
         return self.title
+
+
+class PushSubscription(UUIDModel, TimeStampedModel):
+    """A browser or installed PWA of a parent that agreed to receive Web Push.
+
+    One row per push endpoint. The endpoint is unique: a shared phone re-subscribed by another parent
+    moves to that parent (see ``push.subscribe``). Keys are the browser's ECDH public key and auth secret
+    needed to encrypt payloads for this device only.
+    """
+
+    parent = models.ForeignKey(
+        "accounts.ParentProfile", on_delete=models.CASCADE, related_name="push_subscriptions"
+    )
+    endpoint = models.URLField(max_length=1000, unique=True)
+    p256dh = models.CharField(max_length=200)
+    auth = models.CharField(max_length=100)
+    user_agent = models.CharField(max_length=200, blank=True)
+    failures = models.PositiveSmallIntegerField(default=0)
+    last_sent_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        return f"Push-подписка {self.parent_id}"
+
+    @property
+    def subscription_info(self) -> dict:
+        return {"endpoint": self.endpoint, "keys": {"p256dh": self.p256dh, "auth": self.auth}}

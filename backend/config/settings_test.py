@@ -16,3 +16,7 @@ REST_FRAMEWORK = {**REST_FRAMEWORK, "DEFAULT_THROTTLE_RATES": dict(THROTTLE_DEFA
 AI_PROVIDER = "demo"
 ANTHROPIC_API_KEY = ""
 GEMINI_API_KEY = ""
+# Push is exercised with keys generated inside the tests; a developer's .env must not leak into them.
+WEBPUSH_VAPID_PRIVATE_KEY = ""
+WEBPUSH_VAPID_PUBLIC_KEY = ""
+WEBPUSH_VAPID_SUBJECT = ""

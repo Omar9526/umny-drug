@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from django.core.validators import RegexValidator
 from rest_framework import serializers
 
 from apps.accounts.models import ParentProfile
 from apps.accounts.serializers import StudentProfileSerializer
 from apps.tutor.serializers import SessionSummarySerializer
 
+from . import push
 from .models import ParentNotification
 
 
@@ -159,3 +161,41 @@ class FamilyDeleteSerializer(serializers.Serializer):
         if not value:
             raise serializers.ValidationError("Подтвердите удаление.")
         return value
+
+
+BASE64URL = RegexValidator(r"^[A-Za-z0-9_-]+=*$", "Ожидается значение в base64url.")
+
+
+class PushKeysSerializer(serializers.Serializer):
+    p256dh = serializers.CharField(max_length=200, validators=[BASE64URL])
+    auth = serializers.CharField(max_length=100, validators=[BASE64URL])
+
+
+class PushSubscribeSerializer(serializers.Serializer):
+    """The browser's ``PushSubscription.toJSON()``; ``expirationTime`` is ignored."""
+
+    endpoint = serializers.URLField(max_length=1000)
+    keys = PushKeysSerializer()
+
+    def validate_endpoint(self, value: str) -> str:
+        if not push.endpoint_allowed(value):
+            raise serializers.ValidationError("Адрес push-сервиса не поддерживается.")
+        return value
+
+    def validate_keys(self, value: dict) -> dict:
+        try:
+            push.validate_keys(value["p256dh"], value["auth"])
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return value
+
+
+class PushUnsubscribeSerializer(serializers.Serializer):
+    endpoint = serializers.URLField(max_length=1000)
+
+
+class PushConfigSerializer(serializers.Serializer):
+    enabled = serializers.BooleanField()
+    public_key = serializers.CharField(allow_null=True)
+    devices = serializers.IntegerField()
+    subscribed = serializers.BooleanField()

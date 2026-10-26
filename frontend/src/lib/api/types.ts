@@ -553,6 +553,14 @@ export interface FamilySettings {
   country: string;
 }
 
+export interface PushConfig {
+  enabled: boolean;
+  public_key: string | null;
+  devices: number;
+  /** Whether the endpoint whose SHA-256 was passed as `?endpoint_hash=` belongs to the current parent. */
+  subscribed: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Knowledge map & quizzes
 // ---------------------------------------------------------------------------

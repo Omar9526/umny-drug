@@ -24,6 +24,7 @@ from apps.learning.models import AnswerAttempt, LearningProgress
 from apps.quizzes.models import QuizAttempt
 from apps.tutor.models import LearningSession
 
+from . import push
 from .models import ParentNotification
 
 logger = logging.getLogger("umnydrug.parents")
@@ -399,6 +400,13 @@ def child_progress(student: StudentProfile) -> dict:
 # ---------------------------------------------------------------------------
 # Notifications
 # ---------------------------------------------------------------------------
+def create_notification(**fields) -> ParentNotification:
+    """Single entry point for parent notifications: the row plus a Web Push to the parent's devices."""
+    notification = ParentNotification.objects.create(**fields)
+    push.schedule(notification)
+    return notification
+
+
 def notify_parents(
     student: StudentProfile,
     *,
@@ -424,7 +432,7 @@ def notify_parents(
         ):
             continue
         created.append(
-            ParentNotification.objects.create(
+            create_notification(
                 parent=parent, student=student, kind=kind, title=title, body=body, data=data or {}
             )
         )
@@ -470,7 +478,7 @@ def generate_weekly_reports(now=None) -> int:
             ).exists():
                 continue
             report = weekly_report(student, now)
-            ParentNotification.objects.create(
+            create_notification(
                 parent=parent,
                 student=student,
                 kind=ParentNotification.Kind.WEEKLY_REPORT,

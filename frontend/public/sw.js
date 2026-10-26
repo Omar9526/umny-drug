@@ -13,8 +13,11 @@
  *   device cache would leak them after logout or to a sibling using the same phone.
  *
  * Bump VERSION whenever the caching rules or the precache list change: old caches are deleted on activate.
+ *
+ * Web Push (parents): `push` shows the notification built by the backend (`apps/parents/push.py`),
+ * `notificationclick` focuses or opens the app on the notifications screen.
  */
-const VERSION = "v1";
+const VERSION = "v2";
 const CACHE_PREFIX = "ud-";
 const PRECACHE = `${CACHE_PREFIX}precache-${VERSION}`;
 const STATIC_CACHE = `${CACHE_PREFIX}static-${VERSION}`;
@@ -139,4 +142,65 @@ self.addEventListener("fetch", (event) => {
   if (url.pathname.startsWith("/icons/")) {
     event.respondWith(staleWhileRevalidate(event));
   }
+});
+
+// ---------------------------------------------------------------------------
+// Web Push (parents)
+// ---------------------------------------------------------------------------
+const DEFAULT_NOTIFICATION_URL = "/parent/notifications";
+
+/** Only same-origin destinations: the payload comes from our backend, but a URL is still data. */
+function safeTargetUrl(candidate) {
+  try {
+    const url = new URL(candidate || DEFAULT_NOTIFICATION_URL, self.location.origin);
+    return url.origin === self.location.origin ? url.href : new URL(DEFAULT_NOTIFICATION_URL, self.location.origin).href;
+  } catch {
+    return new URL(DEFAULT_NOTIFICATION_URL, self.location.origin).href;
+  }
+}
+
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+  const options = {
+    body: payload.body || "",
+    icon: "/icons/icon-192.png",
+    tag: payload.tag || undefined,
+    renotify: Boolean(payload.tag),
+    data: { url: safeTargetUrl(payload.url), notificationId: payload.notification_id },
+  };
+  event.waitUntil(self.registration.showNotification(payload.title || "Умный друг", options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = safeTargetUrl(event.notification.data && event.notification.data.url);
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+      if (existing) {
+        await existing.focus();
+        if ("navigate" in existing) await existing.navigate(target).catch(() => undefined);
+        return;
+      }
+      await self.clients.openWindow(target);
+    })(),
+  );
+});
+
+// The push service rotated the subscription: re-subscribe with the same server key. The worker has no
+// session, so the backend learns the new endpoint only when the parent toggles push again.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  const options = event.oldSubscription && event.oldSubscription.options;
+  if (!options || !options.applicationServerKey) return;
+  event.waitUntil(
+    self.registration.pushManager
+      .subscribe({ userVisibleOnly: true, applicationServerKey: options.applicationServerKey })
+      .catch(() => undefined),
+  );
 });

@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { forgetPushOnLogout } from "@/features/parent/push";
 import { api, refreshSession } from "@/lib/api/client";
 import { onAuthLost, setAccessToken } from "@/lib/api/token";
 import type { User } from "@/lib/api/types";
@@ -70,6 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // A shared phone must stop receiving this parent's push notifications; it needs the session, so it goes first.
+    if (user?.role === "parent") await forgetPushOnLogout();
     try {
       await api<void>("/api/v1/auth/logout/", { method: "POST", auth: false });
     } finally {
@@ -78,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setStatus("anonymous");
       queryClient.clear();
     }
-  }, [queryClient]);
+  }, [queryClient, user]);
 
   const value = useMemo(
     () => ({ status, user, setSession, setUser, reloadUser, logout }),

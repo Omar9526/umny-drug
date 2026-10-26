@@ -179,6 +179,27 @@ cd frontend && npm run typecheck && npm run lint && npm test && npm run build
   (только production, тост «Доступно обновление»), `components/pwa/InstallPrompt.tsx` (beforeinstallprompt /
   подсказка iOS, «Позже» на 14 дней в localStorage), `app/offline/`. `sw.js` отдаётся с `no-store` и своим CSP.
   Язык офлайн-страницы фиксируется при установке SW (cookie `ud_locale`).
+- Web Push родителям (2026-10-26): `apps/parents/push.py` (VAPID через `pywebpush`), модель `PushSubscription`
+  (endpoint уникален; другой родитель, подписавший тот же телефон, забирает подписку себе; не больше
+  `MAX_DEVICES_PER_PARENT=10` устройств, лишние — самые старые — удаляются). API: `GET parents/push/?endpoint_hash=<sha256>`
+  → `enabled`, `public_key`, `devices`, `subscribed` (endpoint — capability-URL, в query и логи не попадает),
+  `POST parents/push/subscriptions/` (201 новая/перехват, 200 обновление) и `DELETE` → `{deleted: n}`; throttle-scope `push`.
+  Валидация при подписке: endpoint только `https://` и хост из `WEBPUSH_ALLOWED_HOSTS` (FCM/Mozilla/Apple/WNS — защита от SSRF),
+  `p256dh` — точка P-256, `auth` — 16 байт. Все уведомления создаются только через `services.create_notification` →
+  `push.schedule` → `on_commit(robust=True)` → Celery `send_push` → `push.deliver` (404/410 удаляют подписку; 4xx кроме 429
+  копят `failures`, 5 подряд — удаление; 429/5xx/сеть не считаются; `deliver` никогда не бросает, неактивным родителям не шлёт).
+  `revoke_user_sessions` (reuse refresh-токена, удаление семьи) удаляет и push-подписки. Ключи: `manage.py vapid_keys` →
+  `VAPID_PRIVATE_KEY`/`VAPID_PUBLIC_KEY`/`VAPID_SUBJECT` в `.env`; без них push выключен, системная проверка `parents.E001–E004`
+  ловит рассинхрон пары. Frontend: `lib/push.ts` (браузер, `sha256Hex`, `hasServerKey`), `features/parent/push.ts`
+  (`readPushState`/`enablePush`/`disablePush`/`resyncPush`/`forgetPushOnLogout`), тумблер `components/parent/PushToggle.tsx`
+  в настройках семьи — «включено» только если сервер знает этот endpoint за текущим родителем; локально снимается только
+  при `deleted > 0` (чужая подписка на общем телефоне переживает наш выход); `localStorage.ud_push_parent` = id родителя,
+  включившего push на устройстве, — по нему `resyncPush` молча перерегистрирует подписку после `pushsubscriptionchange`.
+  Logout родителя (не ребёнка) вызывает `forgetPushOnLogout` с таймаутом 3 с. `sw.js` v2: `push`, `notificationclick`
+  (только same-origin URL), `pushsubscriptionchange`. В dev SW не регистрируется → тумблер показывает «не поддерживается»;
+  проверять на `next build && next start` реальным Chrome (headless-Chrome без push-сервиса, incognito без Push API;
+  профиль Playwright держать по короткому пути — длинный путь ломает CacheStorage и install SW на Windows).
+  WebView обёртки Capacitor Web Push не получает — там нужен FCM/APNs (`@capacitor/push-notifications`).
 - Деплой: `docs/DEPLOY.md`; мобильная обёртка: `docs/MOBILE.md`. Lock зависимостей: `backend/requirements.lock.txt`
   (снят с Windows-venv, с dev-пакетами; production-lock собрать в Linux-контейнере).
 - По релизному аудиту 2026-10-22: `.dockerignore` в обоих сервисах; compose требует все секреты (`${VAR:?}`), не публикует

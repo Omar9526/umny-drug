@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { Download, Share, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { isIosSafari, isStandalone } from "@/lib/pwa";
 
 /** Chromium-only event; not in the TS DOM lib. */
 interface BeforeInstallPromptEvent extends Event {
@@ -29,18 +30,6 @@ function rememberDismissal() {
   } catch {
     // Storage unavailable (private mode, blocked site data): the banner comes back on the next visit.
   }
-}
-
-function isStandalone(): boolean {
-  const iosStandalone = (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return iosStandalone || window.matchMedia("(display-mode: standalone)").matches;
-}
-
-/** iOS Safari: no `beforeinstallprompt`, installation only via Share → Add to Home Screen. */
-function isIosSafari(): boolean {
-  const ua = navigator.userAgent;
-  const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  return ios && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|YaBrowser/.test(ua);
 }
 
 const noopSubscribe = () => () => {};

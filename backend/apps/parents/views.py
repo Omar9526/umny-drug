@@ -7,6 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
 
@@ -28,7 +29,7 @@ from apps.tutor.models import LearningSession
 from apps.tutor.queries import session_queryset
 from apps.tutor.serializers import SessionDetailSerializer, SessionSummarySerializer
 
-from . import services
+from . import push, services
 from .models import ParentNotification
 from .serializers import (
     ChildProgressSerializer,
@@ -37,6 +38,9 @@ from .serializers import (
     NotificationSerializer,
     OverviewSerializer,
     PasswordConfirmSerializer,
+    PushConfigSerializer,
+    PushSubscribeSerializer,
+    PushUnsubscribeSerializer,
 )
 
 
@@ -275,6 +279,62 @@ class NotificationReadView(APIView):
     def post(self, request, pk=None):
         parent = _parent_for(request)
         return Response({"updated": services.mark_read(parent, pk)})
+
+
+@extend_schema(tags=["parents"], responses={200: PushConfigSerializer})
+class PushConfigView(APIView):
+    permission_classes = (IsAuthenticated, IsParent)
+
+    def get(self, request):
+        known_hash = request.query_params.get("endpoint_hash", "")
+        if not push.is_endpoint_hash(known_hash):
+            known_hash = ""
+        config = push.config_for(_parent_for(request), endpoint_hash=known_hash or None)
+        return Response(PushConfigSerializer(config).data)
+
+
+@extend_schema(
+    tags=["parents"],
+    request=PushSubscribeSerializer,
+    responses={200: PushConfigSerializer, 201: PushConfigSerializer},
+)
+class PushSubscriptionView(APIView):
+    """Register this browser for Web Push (POST, idempotent) or forget it (DELETE with the endpoint)."""
+
+    permission_classes = (IsAuthenticated, IsParent)
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = "push"
+
+    def post(self, request):
+        parent = _parent_for(request)
+        if not push.is_enabled():
+            raise DomainError(
+                "Push-уведомления не настроены на сервере.", code="push_disabled", status_code=409
+            )
+        serializer = PushSubscribeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        _, changed = push.subscribe(
+            parent,
+            endpoint=data["endpoint"],
+            p256dh=data["keys"]["p256dh"],
+            auth=data["keys"]["auth"],
+            user_agent=request.headers.get("User-Agent", ""),
+            request=request,
+        )
+        return Response(
+            PushConfigSerializer(
+                push.config_for(parent, endpoint_hash=push.hash_endpoint(data["endpoint"]))
+            ).data,
+            status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK,
+        )
+
+    def delete(self, request):
+        parent = _parent_for(request)
+        serializer = PushUnsubscribeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        deleted = push.unsubscribe(parent, endpoint=serializer.validated_data["endpoint"], request=request)
+        return Response({"deleted": deleted})
 
 
 def _family_consents(parent: ParentProfile):

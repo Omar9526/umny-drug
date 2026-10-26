@@ -21,6 +21,7 @@ gunicorn/uvicorn), `worker` и `beat` (Celery), `frontend` (Next.js standalone),
 | `GEMINI_API_KEY` **или** `ANTHROPIC_API_KEY` | провайдер AI; `AI_PROVIDER=auto` выбирает Anthropic → Gemini → demo |
 | `AI_DAILY_BUDGET_USD`, `AI_DAILY_BUDGET_PER_FAMILY_USD`, `AI_DAILY_CALLS_PER_STUDENT` | лимиты расходов |
 | `DJANGO_ADMINS`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL` | письма-алерты о расходах AI |
+| `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` | Web Push родителям; пара из `manage.py vapid_keys`. Без них push выключен, кабинет показывает «не настроено» |
 | `NUM_PROXIES=1` | за reverse proxy: доверять `X-Forwarded-For`/`X-Forwarded-Proto` |
 | `NEXT_PUBLIC_API_URL=https://api.<домен>` | frontend (задаётся при сборке образа) |
 
@@ -38,6 +39,10 @@ docker compose exec backend python manage.py admin_totp admin@example.com   # 2F
 `admin_totp` печатает otpauth-URL и секрет для Google Authenticator / 1Password. Без устройства TOTP в
 админку не войти ни в одном окружении. Потеря телефона — `admin_totp <email> --reset` с сервера.
 Не запускайте команду там, где stdout попадает в логи.
+
+Web Push: `docker compose run --rm backend python manage.py vapid_keys --subject mailto:ops@<домен>` печатает три
+строки для `.env`; после их добавления перезапустите backend и worker. Смена приватного ключа обнуляет все
+подписки устройств (родителям придётся включить push заново), поэтому ключ хранится как секрет и не ротируется без нужды.
 
 ## 3. Reverse proxy и заголовки
 
@@ -65,6 +70,7 @@ Backend включает HSTS (`SECURE_HSTS_SECONDS`, 30 дней по умол�
 | `purge_expired_images` | каждые 6 ч | удаляет фото заданий с истёкшим сроком хранения |
 | `send_weekly_reports` | понедельник 09:00 | недельные отчёты родителям как уведомления в кабинете (не письма) |
 | `check_ai_budget` | каждый час | письмо админам при расходе ≥ `AI_BUDGET_ALERT_THRESHOLD` (80 %) дневного бюджета |
+| `send_push` | по событию, после коммита уведомления | Web Push на подписанные устройства родителя; мёртвые подписки (404/410) удаляются |
 
 Сводка расходов для операторов: `GET /api/v1/admin/ai-usage/` (роль admin): сегодня/7 дней, по
 назначению, провайдеру, модели, топ семей. Только агрегаты.
@@ -94,3 +100,6 @@ Backend включает HSTS (`SECURE_HSTS_SECONDS`, 30 дней по умол�
 3. Админка открывается только с кодом TOTP.
 4. В логах нет `ai.budget_alert`; письмо-алерт приходит на `DJANGO_ADMINS` (можно проверить, временно снизив порог).
 5. `curl -I https://app.<домен>/` содержит `content-security-policy` и `strict-transport-security`.
+6. Кабинет родителя → Настройки → «Push на это устройство» включается (Chrome/Android; iOS — после установки на
+   экран «Домой»), а `GET /api/v1/parents/push/` отдаёт `enabled: true`. Тестовое уведомление: несколько неверных
+   PIN ребёнка подряд → push «Несколько неверных PIN подряд».

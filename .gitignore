@@ -37,3 +37,7 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# Artefacts of local runs
+backend/encrypted.data
+recognition-report*.json

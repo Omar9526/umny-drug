@@ -8,10 +8,11 @@ import { toast } from "sonner";
 import { Check, Copy, FileText, LogOut, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
 import { Field } from "@/components/forms/Field";
 import { LanguageToggle } from "@/components/forms/pickers";
 import { CardSkeleton, ErrorState } from "@/components/feedback/States";
+import { PushToggle } from "@/components/parent/PushToggle";
+import { SettingRow } from "@/components/parent/SettingRow";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuth } from "@/features/auth/AuthProvider";
 import {
@@ -29,30 +30,6 @@ import { setLocaleCookie } from "@/lib/locale";
 import type { ConsentRecord, Language } from "@/lib/api/types";
 
 const REVOCABLE: ConsentRecord["consent_type"][] = ["child_data", "ai_processing", "marketing"];
-
-function SettingRow({
-  label,
-  hint,
-  checked,
-  disabled,
-  onChange,
-}: {
-  label: string;
-  hint?: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center gap-4 py-3">
-      <span className="min-w-0 flex-1">
-        <span className="block text-base font-semibold">{label}</span>
-        {hint && <span className="block text-sm text-muted-foreground">{hint}</span>}
-      </span>
-      <Switch checked={checked} disabled={disabled} onCheckedChange={(value) => onChange(Boolean(value))} />
-    </label>
-  );
-}
 
 export default function FamilySettingsPage() {
   const t = useTranslations("parent.family");
@@ -189,6 +166,7 @@ export default function FamilySettingsPage() {
               disabled={updateSettings.isPending}
               onChange={(value) => void toggle("notify_email", value)}
             />
+            <PushToggle />
           </div>
         )}
         <Field label={tpr("interfaceLanguage")} className="mt-4">

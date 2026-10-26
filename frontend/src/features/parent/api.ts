@@ -13,6 +13,7 @@ import type {
   ParentNotification,
   ParentOverview,
   ParentSessionDetail,
+  PushConfig,
   SessionStatus,
   SessionSummary,
   StudentProfile,
@@ -42,6 +43,12 @@ export interface ChildUpdateInput {
 export interface ChildSessionsFilter {
   status?: SessionStatus | "needs_review" | "";
   subject?: string;
+}
+
+/** `PushSubscription.toJSON()` without `expirationTime`. */
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
 }
 
 const BASE = "/api/v1/parents";
@@ -78,6 +85,12 @@ export const parentApi = {
       method: "POST",
       body: { password, confirm: true },
     }),
+  pushConfig: (endpointHash?: string) =>
+    api<PushConfig>(`${BASE}/push/${endpointHash ? `?${new URLSearchParams({ endpoint_hash: endpointHash })}` : ""}`),
+  savePushSubscription: (input: PushSubscriptionInput) =>
+    api<PushConfig>(`${BASE}/push/subscriptions/`, { method: "POST", body: input }),
+  deletePushSubscription: (endpoint: string) =>
+    api<{ deleted: number }>(`${BASE}/push/subscriptions/`, { method: "DELETE", body: { endpoint } }),
   settings: () => api<FamilySettings>(`${BASE}/settings/`),
   updateSettings: (input: Partial<FamilySettings>) =>
     api<FamilySettings>(`${BASE}/settings/`, { method: "PATCH", body: input }),

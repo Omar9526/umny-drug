@@ -212,6 +212,7 @@ THROTTLE_DEFAULTS = {
     "refresh": "30/min",
     "upload": "20/hour",
     "ai": "60/hour",
+    "push": "20/min",
 }
 
 REST_FRAMEWORK = {
@@ -434,3 +435,17 @@ LOGGING = {
         "umnydrug": {"level": os.getenv("LOG_LEVEL", "INFO"), "propagate": True},
     },
 }
+
+# ---------------------------------------------------------------------------
+# Web Push to parents (VAPID). `manage.py vapid_keys` prints a pair; without keys push is disabled and
+# `GET /api/v1/parents/push/` says so. apps.parents.checks validates the pair at startup.
+# ---------------------------------------------------------------------------
+WEBPUSH_VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "")
+WEBPUSH_VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "")
+WEBPUSH_VAPID_SUBJECT = os.getenv("VAPID_SUBJECT", "")
+WEBPUSH_TTL_SECONDS = int(os.getenv("WEBPUSH_TTL_SECONDS", str(24 * 60 * 60)))
+# Push services the backend may POST to (exact host or `.suffix`); a client cannot point us anywhere else.
+WEBPUSH_ALLOWED_HOSTS = env_list(
+    "WEBPUSH_ALLOWED_HOSTS",
+    "fcm.googleapis.com,.push.services.mozilla.com,web.push.apple.com,.push.apple.com,.notify.windows.com",
+)

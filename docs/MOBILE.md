@@ -5,7 +5,9 @@
 Приложение устанавливается на телефон из браузера: `manifest.webmanifest`, иконки, service worker
 (`frontend/public/sw.js`), офлайн-страница `/offline`, баннер «Установить приложение» на главных экранах.
 Service worker кэширует только оболочку и статику; страницы с данными ребёнка и ответы API не кэшируются.
-Камера работает через `<input capture>`, уведомления родителю приходят внутри приложения.
+Камера работает через `<input capture>`. Уведомления родителю приходят внутри приложения и как Web Push
+(тумблер «Push на это устройство» в настройках семьи): Android и десктоп — прямо из браузера, iOS 16.4+ — только
+после установки на экран «Домой». Серверу нужны VAPID-ключи (`manage.py vapid_keys`), см. `docs/DEPLOY.md`.
 
 ## Потом: обёртка Capacitor (iOS / Android)
 
@@ -29,7 +31,9 @@ export default config;
    не отправляется. Варианты: открывать приложение по тому же домену (`server.url`, как выше — тогда cookie
    обычные) или добавить обмен refresh-токена через `@capacitor/preferences` только для нативной обёртки.
 2. Камера: `@capacitor/camera` вместо `<input capture>` (качество фото и разрешения).
-3. Push-уведомления родителям: `@capacitor/push-notifications` + отдельная таблица устройств на бэкенде.
+3. Push-уведомления родителям: WebView обёртки Web Push не получает, нужен `@capacitor/push-notifications`
+   (FCM для Android, APNs для iOS — внешние проекты Firebase/Apple) и расширение `PushSubscription`/`push.deliver`
+   под нативные токены. До этого push работает только в PWA.
 4. Магазины: политика конфиденциальности (`/legal/privacy`), возрастная категория, Apple «Kids Category»
    требует отсутствие трекинга и рекламы — в приложении их нет.
 5. CSP: добавить `capacitor://localhost` в `connect-src`/`img-src`, если обёртка не использует `server.url`.

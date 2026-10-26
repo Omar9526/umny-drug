@@ -12,6 +12,8 @@ from .views import (
     NotificationListView,
     NotificationReadView,
     OverviewView,
+    PushConfigView,
+    PushSubscriptionView,
 )
 
 router = SimpleRouter()
@@ -34,6 +36,8 @@ urlpatterns = [
         NotificationReadView.as_view(),
         name="parent-notification-read",
     ),
+    path("parents/push/", PushConfigView.as_view(), name="parent-push-config"),
+    path("parents/push/subscriptions/", PushSubscriptionView.as_view(), name="parent-push-subscriptions"),
     path("parents/consents/", ConsentListView.as_view(), name="parent-consents"),
     path("parents/consents/<uuid:pk>/revoke/", ConsentRevokeView.as_view(), name="parent-consent-revoke"),
     *router.urls,
