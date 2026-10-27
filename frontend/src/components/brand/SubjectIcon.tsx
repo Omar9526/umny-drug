@@ -3,6 +3,7 @@ import {
   BookMarked,
   BookOpen,
   Calculator,
+  Dumbbell,
   FlaskConical,
   Globe,
   Landmark,
@@ -11,10 +12,17 @@ import {
   Leaf,
   Map as MapIcon,
   Microscope,
+  Music,
+  Paintbrush,
+  Palette,
   PencilLine,
+  ScrollText,
+  Shield,
   Sigma,
   Sprout,
   Triangle,
+  Users,
+  Wrench,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -37,6 +45,14 @@ const ICONS: Record<string, LucideIcon> = {
   laptop: Laptop,
   sprout: Sprout,
   microscope: Microscope,
+  users: Users,
+  "scroll-text": ScrollText,
+  wrench: Wrench,
+  palette: Palette,
+  paintbrush: Paintbrush,
+  music: Music,
+  dumbbell: Dumbbell,
+  shield: Shield,
 };
 
 const COLORS: Record<string, string> = {

@@ -35,7 +35,13 @@ export function SubjectTile({
         icon={subject.icon}
         className="size-[76px] transition-transform duration-300 group-hover:scale-105 group-hover:rotate-[-2deg]"
       />
-      <span className={cn("mt-1 text-[15px] leading-tight font-bold", dark ? "text-white" : "text-ink")}>
+      <span
+        className={cn(
+          "mt-1 leading-tight font-bold",
+          subject.name.length > 22 ? "text-[13px]" : "text-[15px]",
+          dark ? "text-white" : "text-ink",
+        )}
+      >
         {subject.name}
       </span>
       {caption && (
