@@ -38,8 +38,8 @@ class ParentProfileAdmin(admin.ModelAdmin):
 
 @admin.register(StudentProfile)
 class StudentProfileAdmin(admin.ModelAdmin):
-    list_display = ("nickname", "grade", "family", "instruction_language", "is_active", "created_at")
-    list_filter = ("grade__number", "instruction_language", "is_active")
+    list_display = ("nickname", "grade", "family", "language", "is_active", "created_at")
+    list_filter = ("grade__number", "language", "is_active")
     search_fields = ("nickname", "family__code")
     autocomplete_fields = ("user", "family")
     exclude = ("pin_hash",)

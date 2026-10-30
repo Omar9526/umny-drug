@@ -151,7 +151,7 @@ def start_quiz(*, student: StudentProfile, topic: Topic, request=None) -> QuizAt
     )
     if existing is not None:
         return existing
-    language = student.explanation_language
+    language = student.language
     grade = topic.section.grade
     quiz = (
         Quiz.objects.filter(topic=topic, language=language, is_active=True)
@@ -264,7 +264,7 @@ def answer_question(*, attempt: QuizAttempt, question_id: int, answer: object) -
     key = str(question.id)
     if key in attempt.results:  # idempotent: a retried request does not change the verdict
         return _result_payload(attempt, question)
-    lang = attempt.student.explanation_language
+    lang = attempt.student.language
     correct, correct_answer = _check(question, answer, lang)
     attempt.answers[key] = answer
     attempt.results[key] = {

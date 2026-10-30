@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,15 +12,12 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { useCurricula } from "@/features/curriculum/api";
 import { useUpdateStudent, type StudentUpdateInput } from "@/features/dashboard/api";
 import { getErrorMessage } from "@/lib/api/client";
-import { setLocaleCookie } from "@/lib/locale";
-import type { Language } from "@/lib/api/types";
 
 export default function ProfilePage() {
   const t = useTranslations("profile");
   const th = useTranslations("home");
   const ta = useTranslations("app");
   const router = useRouter();
-  const locale = useLocale() as Language;
   const { user, logout } = useAuth();
   const student = user?.student;
   const curricula = useCurricula();
@@ -34,11 +31,6 @@ export default function ProfilePage() {
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  }
-
-  function changeInterfaceLanguage(lang: Language) {
-    setLocaleCookie(lang);
-    router.refresh();
   }
 
   async function onLogout() {
@@ -67,17 +59,8 @@ export default function ProfilePage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="font-heading text-lg font-extrabold">{t("explanationLanguage")}</h3>
-        <LanguageToggle
-          name={t("explanationLanguage")}
-          value={student.explanation_language}
-          onChange={(explanation_language) => save({ explanation_language })}
-        />
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h3 className="font-heading text-lg font-extrabold">{t("interfaceLanguage")}</h3>
-        <LanguageToggle name={t("interfaceLanguage")} value={locale} onChange={changeInterfaceLanguage} />
+        <h3 className="font-heading text-lg font-extrabold">{t("language")}</h3>
+        <LanguageToggle name={t("language")} value={student.language} onChange={(language) => save({ language })} />
       </section>
 
       <section className="flex flex-col gap-3">

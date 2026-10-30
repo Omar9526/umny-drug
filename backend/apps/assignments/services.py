@@ -69,7 +69,7 @@ def create_upload(
         family=student.family,
         source=source,
         typed_text=typed_text,
-        language_hint=language_hint or student.instruction_language,
+        language_hint=language_hint or student.language,
     )
     for order, django_file in enumerate(files):
         try:
@@ -123,7 +123,7 @@ def _subject_options(student: StudentProfile) -> list[SubjectOption]:
         grade_from__lte=grade_number,
         grade_to__gte=grade_number,
     ).order_by("order")
-    return [SubjectOption(slug=s.slug, name=s.name(student.explanation_language)) for s in subjects]
+    return [SubjectOption(slug=s.slug, name=s.name(student.language)) for s in subjects]
 
 
 _WORD_RE = re.compile(r"[a-zA-Zа-яА-ЯёЁ]{3,}")

@@ -51,7 +51,7 @@ class StudentDashboardView(APIView):
 
     def get(self, request):
         student = _student_for(request)
-        lang = student.explanation_language
+        lang = student.language
         sessions = LearningSession.objects.filter(student=student).select_related(
             "subject", "topic", "assignment"
         )

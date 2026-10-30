@@ -71,8 +71,7 @@ class ChildrenViewSet(ViewSet):
             parent=parent,
             nickname=data["nickname"],
             grade=data["grade_id"],
-            instruction_language=data["instruction_language"],
-            explanation_language=data["explanation_language"],
+            language=data["language"],
             avatar=data["avatar"],
             pin=data["pin"],
             consent_confirmed=data["consent_confirmed"],
@@ -122,7 +121,7 @@ class ChildrenViewSet(ViewSet):
         student = services.child_for(parent, pk)
         data = services.child_progress(student)
         data["child"] = student
-        return Response(ChildProgressSerializer(data, context={"lang": student.explanation_language}).data)
+        return Response(ChildProgressSerializer(data, context={"lang": student.language}).data)
 
     @extend_schema(
         parameters=[
@@ -148,7 +147,7 @@ class ChildrenViewSet(ViewSet):
             qs = qs.filter(subject__slug=subject)
         paginator = DefaultPagination()
         page = paginator.paginate_queryset(qs.order_by("-last_activity_at"), request, view=self)
-        data = SessionSummarySerializer(page, many=True, context={"lang": student.explanation_language}).data
+        data = SessionSummarySerializer(page, many=True, context={"lang": student.language}).data
         return paginator.get_paginated_response(data)
 
     @extend_schema(responses={200: SessionDetailSerializer})
@@ -159,7 +158,7 @@ class ChildrenViewSet(ViewSet):
         parent = _parent_for(request)
         student = services.child_for(parent, pk)
         session = get_object_or_404(session_queryset(detail=True), pk=session_id, student=student)
-        data = SessionDetailSerializer(session, context={"lang": student.explanation_language}).data
+        data = SessionDetailSerializer(session, context={"lang": student.language}).data
         data["conversation_visible"] = student.share_conversations_with_parent
         data["summary_for_parent"] = session.summary_for_parent
         if not student.share_conversations_with_parent:

@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api/client";
-import type { Dashboard, Paginated, SessionStatus, SessionSummary, StudentProfile } from "@/lib/api/types";
+import type { Dashboard, Language, Paginated, SessionStatus, SessionSummary, StudentProfile } from "@/lib/api/types";
 import { useAuth } from "@/features/auth/AuthProvider";
 
 export function useDashboard() {
@@ -11,8 +11,7 @@ export function useDashboard() {
 
 export interface StudentUpdateInput {
   avatar?: string;
-  instruction_language?: "ru" | "ky";
-  explanation_language?: "ru" | "ky";
+  language?: Language;
   grade_id?: number;
   onboarding_completed?: boolean;
 }
@@ -25,7 +24,7 @@ export function useUpdateStudent() {
     mutationFn: (input: StudentUpdateInput) =>
       api<StudentProfile>("/api/v1/students/me/", { method: "PATCH", body: input }),
     onSuccess: (profile) => {
-      if (user) setUser({ ...user, preferred_language: profile.explanation_language, student: profile });
+      if (user) setUser({ ...user, preferred_language: profile.language, student: profile });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["subjects"] });
       queryClient.invalidateQueries({ queryKey: ["subject"] });

@@ -83,7 +83,7 @@ def create_session(
 ) -> LearningSession:
     from apps.assignments.models import Assignment
 
-    language = student.explanation_language
+    language = student.language
     if assignment is not None:
         subject = subject or assignment.subject
         topic = topic or assignment.topic

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from django.core.validators import RegexValidator
+from django.db import transaction
 from rest_framework import serializers
 
+from apps.accounts.constants import LANGUAGE_CHOICES
 from apps.accounts.models import ParentProfile
 from apps.accounts.serializers import StudentProfileSerializer
 from apps.tutor.serializers import SessionSummarySerializer
@@ -141,10 +143,25 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class FamilySettingsSerializer(serializers.ModelSerializer):
+    """Family-level preferences; `preferred_language` is the parent's single language (UI and reports)."""
+
+    preferred_language = serializers.ChoiceField(
+        source="user.preferred_language", choices=LANGUAGE_CHOICES, required=False
+    )
+
     class Meta:
         model = ParentProfile
-        fields = ("notify_weekly_report", "notify_email", "country")
+        fields = ("notify_weekly_report", "notify_email", "country", "preferred_language")
         read_only_fields = ("country",)
+
+    def update(self, instance: ParentProfile, validated_data):
+        user_data = validated_data.pop("user", {})
+        with transaction.atomic():
+            instance = super().update(instance, validated_data)
+            if "preferred_language" in user_data:
+                instance.user.preferred_language = user_data["preferred_language"]
+                instance.user.save(update_fields=["preferred_language", "updated_at"])
+        return instance
 
 
 class PasswordConfirmSerializer(serializers.Serializer):

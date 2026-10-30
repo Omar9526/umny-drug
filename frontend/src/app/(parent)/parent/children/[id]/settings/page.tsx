@@ -142,23 +142,8 @@ function SettingsForm({ child, id }: { child: StudentProfile; id: string }) {
             }
           </Field>
 
-          <Field label={tf("instructionLanguage")}>
-            {() => (
-              <LanguageToggle
-                name={tf("instructionLanguage")}
-                value={child.instruction_language}
-                onChange={(instruction_language) => void save({ instruction_language })}
-              />
-            )}
-          </Field>
-          <Field label={tf("explanationLanguage")}>
-            {() => (
-              <LanguageToggle
-                name={tf("explanationLanguage")}
-                value={child.explanation_language}
-                onChange={(explanation_language) => void save({ explanation_language })}
-              />
-            )}
+          <Field label={tf("language")} hint={tf("languageHint")}>
+            {() => <LanguageToggle name={tf("language")} value={child.language} onChange={(language) => void save({ language })} />}
           </Field>
           <Field label={tf("avatar")}>
             {() => <AvatarPicker value={child.avatar} onChange={(avatar) => void save({ avatar })} />}

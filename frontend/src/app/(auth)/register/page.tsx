@@ -15,7 +15,6 @@ import { AuthCard } from "@/components/layout/AuthCard";
 import { authApi } from "@/features/auth/api";
 import { useAuth } from "@/features/auth/AuthProvider";
 import { ApiError, getErrorMessage } from "@/lib/api/client";
-import { setLocaleCookie } from "@/lib/locale";
 
 export default function RegisterPage() {
   const t = useTranslations("auth");
@@ -58,9 +57,7 @@ export default function RegisterPage() {
         consents: { terms: values.terms, privacy: values.privacy, marketing: values.marketing },
       });
       setSession(result.access, result.user);
-      setLocaleCookie(values.preferred_language);
       router.replace("/parent");
-      router.refresh();
     } catch (error) {
       if (error instanceof ApiError) {
         const fields = error.fieldErrors();

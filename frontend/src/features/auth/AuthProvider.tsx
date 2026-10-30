@@ -2,9 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { forgetPushOnLogout } from "@/features/parent/push";
 import { api, refreshSession } from "@/lib/api/client";
 import { onAuthLost, setAccessToken } from "@/lib/api/token";
+import { setLocaleCookie } from "@/lib/locale";
 import type { User } from "@/lib/api/types";
 
 type Status = "loading" | "anonymous" | "authenticated";
@@ -27,6 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const queryClient = useQueryClient();
   const bootstrapped = useRef(false);
+  const locale = useLocale();
+  const router = useRouter();
 
   useEffect(() => {
     if (bootstrapped.current) return;
@@ -51,6 +56,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }),
     [queryClient],
   );
+
+  // One language per person: whoever is signed in sees the interface in their own language.
+  // The guard avoids a refresh on every user update when the cookie is blocked and the locale never follows.
+  const attemptedLocale = useRef<string | null>(null);
+  useEffect(() => {
+    if (!user) return;
+    if (user.preferred_language === locale) {
+      attemptedLocale.current = null;
+      return;
+    }
+    if (attemptedLocale.current === user.preferred_language) return;
+    attemptedLocale.current = user.preferred_language;
+    setLocaleCookie(user.preferred_language);
+    router.refresh();
+  }, [user, locale, router]);
 
   const setSession = useCallback(
     (access: string, nextUser: User) => {

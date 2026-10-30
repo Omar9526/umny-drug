@@ -32,7 +32,7 @@ def _student(request) -> StudentProfile:
 
 
 def _ctx(request, student: StudentProfile) -> dict:
-    return {"request": request, "lang": student.explanation_language, "student": student}
+    return {"request": request, "lang": student.language, "student": student}
 
 
 @extend_schema(tags=["assignments"], request=UploadCreateSerializer, responses={201: UploadSerializer})
@@ -58,7 +58,7 @@ class UploadCreateView(APIView):
             source=data["source"],
             files=request.FILES.getlist("images"),
             typed_text=data.get("typed_text", ""),
-            language_hint=data.get("language_hint") or student.instruction_language,
+            language_hint=data.get("language_hint") or student.language,
             request=request,
         )
         services.enqueue_recognition(upload)

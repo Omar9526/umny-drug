@@ -12,7 +12,6 @@ import { useAuth } from "@/features/auth/AuthProvider";
 import { useCurricula } from "@/features/curriculum/api";
 import { useUpdateStudent } from "@/features/dashboard/api";
 import { getErrorMessage } from "@/lib/api/client";
-import { setLocaleCookie } from "@/lib/locale";
 import type { AvatarKey, Language } from "@/lib/api/types";
 
 export default function OnboardingPage() {
@@ -24,7 +23,7 @@ export default function OnboardingPage() {
   const curricula = useCurricula();
   const update = useUpdateStudent();
 
-  const [language, setLanguage] = useState<Language>(student?.explanation_language ?? "ru");
+  const [language, setLanguage] = useState<Language>(student?.language ?? "ru");
   const [gradeId, setGradeId] = useState<number | null>(student?.grade.id ?? null);
   const [avatar, setAvatar] = useState<AvatarKey>(student?.avatar ?? "fox");
 
@@ -33,10 +32,8 @@ export default function OnboardingPage() {
   async function finish() {
     if (!gradeId) return;
     try {
-      await update.mutateAsync({ explanation_language: language, grade_id: gradeId, avatar, onboarding_completed: true });
-      setLocaleCookie(language);
+      await update.mutateAsync({ language, grade_id: gradeId, avatar, onboarding_completed: true });
       router.replace("/home");
-      router.refresh();
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
@@ -52,7 +49,7 @@ export default function OnboardingPage() {
 
       <section className="rise-in rise-in-delay-1 flex flex-col gap-3">
         <h2 className="text-lg font-extrabold">{t("languageTitle")}</h2>
-        <LanguageToggle name={tp("explanationLanguage")} value={language} onChange={setLanguage} />
+        <LanguageToggle name={tp("language")} value={language} onChange={setLanguage} />
       </section>
 
       <section className="rise-in rise-in-delay-2 flex flex-col gap-3">

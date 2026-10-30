@@ -22,8 +22,7 @@ import type {
 export interface CreateChildInput {
   nickname: string;
   grade_id: number;
-  instruction_language: Language;
-  explanation_language: Language;
+  language: Language;
   avatar: string;
   pin: string;
   consent_confirmed: boolean;
@@ -33,8 +32,7 @@ export interface ChildUpdateInput {
   nickname?: string;
   avatar?: AvatarKey;
   grade_id?: number;
-  instruction_language?: Language;
-  explanation_language?: Language;
+  language?: Language;
   share_conversations_with_parent?: boolean;
   allow_photo_upload?: boolean;
   allow_free_questions?: boolean;

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Check, Copy, FileText, LogOut, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,6 @@ import {
   useUpdateFamilySettings,
 } from "@/features/parent/api";
 import { getErrorMessage } from "@/lib/api/client";
-import { setLocaleCookie } from "@/lib/locale";
 import type { ConsentRecord, Language } from "@/lib/api/types";
 
 const REVOCABLE: ConsentRecord["consent_type"][] = ["child_data", "ai_processing", "marketing"];
@@ -38,8 +37,7 @@ export default function FamilySettingsPage() {
   const tpr = useTranslations("profile");
   const router = useRouter();
   const format = useFormatter();
-  const locale = useLocale() as Language;
-  const { user, logout } = useAuth();
+  const { user, setUser, logout } = useAuth();
   const family = useFamily();
   const settings = useFamilySettings();
   const consents = useConsents();
@@ -85,9 +83,14 @@ export default function FamilySettingsPage() {
     }
   }
 
-  function changeInterfaceLanguage(lang: Language) {
-    setLocaleCookie(lang);
-    router.refresh();
+  async function changeLanguage(preferred_language: Language) {
+    try {
+      const settings = await updateSettings.mutateAsync({ preferred_language });
+      // The auth context drives the interface language: AuthProvider syncs the locale cookie from it.
+      if (user) setUser({ ...user, preferred_language: settings.preferred_language });
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    }
   }
 
   async function onRevoke(consent: ConsentRecord) {
@@ -169,8 +172,14 @@ export default function FamilySettingsPage() {
             <PushToggle />
           </div>
         )}
-        <Field label={tpr("interfaceLanguage")} className="mt-4">
-          {() => <LanguageToggle name={tpr("interfaceLanguage")} value={locale} onChange={changeInterfaceLanguage} />}
+        <Field label={tpr("language")} className="mt-4">
+          {() => (
+            <LanguageToggle
+              name={tpr("language")}
+              value={user?.preferred_language ?? "ru"}
+              onChange={(lang) => void changeLanguage(lang)}
+            />
+          )}
         </Field>
       </section>
 

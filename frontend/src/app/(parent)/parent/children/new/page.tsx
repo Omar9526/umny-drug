@@ -29,8 +29,7 @@ export default function NewChildPage() {
   const schema = z.object({
     nickname: z.string().trim().min(2, te("nameMin")).max(40),
     grade_id: z.number({ error: te("required") }).int().positive(),
-    instruction_language: z.enum(["ru", "ky"]),
-    explanation_language: z.enum(["ru", "ky"]),
+    language: z.enum(["ru", "ky"]),
     avatar: z.string(),
     pin: z
       .string()
@@ -45,8 +44,7 @@ export default function NewChildPage() {
     defaultValues: {
       nickname: "",
       grade_id: undefined,
-      instruction_language: "ru",
-      explanation_language: "ru",
+      language: "ru",
       avatar: "fox",
       pin: "",
       consent_confirmed: false,
@@ -114,22 +112,12 @@ export default function NewChildPage() {
           )}
         </Field>
 
-        <Field label={t("instructionLanguage")}>
+        <Field label={t("language")} hint={t("languageHint")}>
           {() => (
             <Controller
               control={form.control}
-              name="instruction_language"
-              render={({ field }) => <LanguageToggle name={t("instructionLanguage")} value={field.value} onChange={field.onChange} />}
-            />
-          )}
-        </Field>
-
-        <Field label={t("explanationLanguage")}>
-          {() => (
-            <Controller
-              control={form.control}
-              name="explanation_language"
-              render={({ field }) => <LanguageToggle name={t("explanationLanguage")} value={field.value} onChange={field.onChange} />}
+              name="language"
+              render={({ field }) => <LanguageToggle name={t("language")} value={field.value} onChange={field.onChange} />}
             />
           )}
         </Field>

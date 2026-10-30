@@ -33,13 +33,14 @@ def test_student_can_update_profile_and_finish_onboarding():
     fam = make_family(email="a@example.com", grade=5)
     response = fam["student"].patch(
         "/api/v1/students/me/",
-        {"avatar": "robot", "explanation_language": "ky", "onboarding_completed": True},
+        {"avatar": "robot", "language": "ky", "onboarding_completed": True},
         format="json",
     )
     assert response.status_code == 200
     body = response.json()
     assert body["avatar"] == "robot"
-    assert body["explanation_language"] == "ky"
+    assert body["language"] == "ky"
+    assert fam["student"].get("/api/v1/auth/me/").json()["preferred_language"] == "ky"
     assert body["onboarding_completed"] is True
 
     bad = fam["student"].patch("/api/v1/students/me/", {"avatar": "dragon"}, format="json")

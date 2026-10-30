@@ -280,6 +280,28 @@ def test_weekly_report_task_is_idempotent_and_respects_opt_out():
     assert out["parent"].get("/api/v1/parents/notifications/").json()["count"] == 0
 
 
+def test_parent_language_is_saved_in_settings_and_mirrored_to_user():
+    fam = make_family(email="lang@example.com")
+    response = fam["parent"].patch("/api/v1/parents/settings/", {"preferred_language": "ky"}, format="json")
+    assert response.status_code == 200
+    assert response.json()["preferred_language"] == "ky"
+    assert fam["parent"].get("/api/v1/auth/me/").json()["preferred_language"] == "ky"
+    assert fam["parent"].get("/api/v1/parents/settings/").json()["preferred_language"] == "ky"
+
+    bad = fam["parent"].patch("/api/v1/parents/settings/", {"preferred_language": "en"}, format="json")
+    assert bad.status_code == 400
+
+
+def test_child_language_set_by_parent_is_mirrored_to_child_user():
+    fam = make_family(email="lang2@example.com")
+    response = fam["parent"].patch(
+        f"/api/v1/parents/children/{fam['child']['id']}/", {"language": "ky"}, format="json"
+    )
+    assert response.status_code == 200
+    assert response.json()["language"] == "ky"
+    assert fam["student"].get("/api/v1/auth/me/").json()["preferred_language"] == "ky"
+
+
 def test_revoking_child_data_consent_deactivates_child():
     fam = make_family()
     consents = fam["parent"].get("/api/v1/parents/consents/")

@@ -39,6 +39,11 @@ cd frontend && npm run typecheck && npm run lint && npm test && npm run build
 - AI: только через `ai.registry.get_provider()`; все ответы модели валидируются pydantic-схемами
   из `ai/schemas.py`. Текст с фото — недоверенные данные. Demo-провайдер всегда помечает себя.
 - Локализуемые поля каталога — пары `name_ru/name_ky`; в API отдаётся `name` по `context["lang"]`.
+- Язык один на человека (с 2026-10-30): у ученика `StudentProfile.language` (интерфейс, объяснения, подсказка
+  распознавания; `user.preferred_language` зеркалится из него), у родителя `User.preferred_language`
+  (меняется через `PATCH /parents/settings/`). Cookie интерфейса `ud_locale` ставит только `AuthProvider`
+  (эффект по `user.preferred_language` + `router.refresh()`), страницы её не трогают. Отдельных «языка обучения»
+  и «языка интерфейса» нет (миграция `accounts.0003`).
 - Сид каталога — `manage.py seed_curriculum`, идемпотентный (`update_or_create` по slug). Данные в
   `apps/curriculum/seed_data.py`; кыргызские названия тем частично пустые — нужна вычитка носителем.
 - Frontend: все запросы через `lib/api/client.ts` (`api<T>()`), состояние сервера — TanStack Query,

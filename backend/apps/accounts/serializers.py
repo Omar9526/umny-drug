@@ -47,8 +47,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "avatar",
             "grade",
             "curriculum",
-            "instruction_language",
-            "explanation_language",
+            "language",
             "onboarding_completed",
             "share_conversations_with_parent",
             "allow_photo_upload",
@@ -72,8 +71,7 @@ class StudentProfileUpdateSerializer(serializers.ModelSerializer):
         model = StudentProfile
         fields = (
             "avatar",
-            "instruction_language",
-            "explanation_language",
+            "language",
             "grade_id",
             "onboarding_completed",
         )
@@ -93,8 +91,8 @@ class StudentProfileUpdateSerializer(serializers.ModelSerializer):
         if completed and instance.onboarding_completed_at is None:
             instance.onboarding_completed_at = timezone.now()
         instance = super().update(instance, validated_data)
-        if "explanation_language" in validated_data:
-            instance.user.preferred_language = validated_data["explanation_language"]
+        if "language" in validated_data:
+            instance.user.preferred_language = validated_data["language"]
             instance.user.save(update_fields=["preferred_language", "updated_at"])
         return instance
 
@@ -217,8 +215,7 @@ class ChildPublicSerializer(serializers.ModelSerializer):
 class ChildCreateSerializer(serializers.Serializer):
     nickname = serializers.CharField(min_length=2, max_length=40)
     grade_id = serializers.PrimaryKeyRelatedField(queryset=Grade.objects.select_related("curriculum"))
-    instruction_language = serializers.ChoiceField(choices=LANGUAGE_CHOICES, default="ru")
-    explanation_language = serializers.ChoiceField(choices=LANGUAGE_CHOICES, default="ru")
+    language = serializers.ChoiceField(choices=LANGUAGE_CHOICES, default="ru")
     avatar = serializers.ChoiceField(choices=AVATAR_KEYS, default="fox")
     pin = serializers.CharField(write_only=True)
     consent_confirmed = serializers.BooleanField()
@@ -237,8 +234,7 @@ class ChildUpdateSerializer(serializers.ModelSerializer):
         fields = (
             "nickname",
             "avatar",
-            "instruction_language",
-            "explanation_language",
+            "language",
             "grade_id",
             "share_conversations_with_parent",
             "allow_photo_upload",

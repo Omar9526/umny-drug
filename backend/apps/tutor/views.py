@@ -40,7 +40,7 @@ def _session(request, pk, student: StudentProfile, *, detail: bool = False) -> L
 
 
 def _ctx(request, student: StudentProfile) -> dict:
-    return {"request": request, "lang": student.explanation_language}
+    return {"request": request, "lang": student.language}
 
 
 @extend_schema(tags=["tutor"], request=CreateSessionSerializer, responses={201: SessionDetailSerializer})

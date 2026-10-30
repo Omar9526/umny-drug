@@ -45,8 +45,7 @@ def create_child(parent_client: APIClient, nickname: str = "Алина", grade: 
         {
             "nickname": nickname,
             "grade_id": grade_id(grade),
-            "instruction_language": "ru",
-            "explanation_language": "ru",
+            "language": "ru",
             "avatar": "owl",
             "pin": pin,
             "consent_confirmed": True,

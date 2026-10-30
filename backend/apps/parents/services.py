@@ -103,7 +103,7 @@ def child_summary(student: StudentProfile, now=None) -> dict:
     totals["quizzes_week"] = QuizAttempt.objects.filter(
         student=student, status=QuizAttempt.Status.FINISHED, finished_at__gte=week_start
     ).count()
-    lang = student.explanation_language
+    lang = student.language
     difficult = difficult_topics(student, limit=3)
     return {
         **totals,
@@ -135,7 +135,7 @@ def difficult_topics(student: StudentProfile, limit: int = 5):
 
 
 def subject_breakdown(student: StudentProfile) -> list[dict]:
-    lang = student.explanation_language
+    lang = student.language
     rows = (
         LearningSession.objects.filter(student=student, subject__isnull=False)
         .values("subject")
@@ -189,7 +189,7 @@ def subject_breakdown(student: StudentProfile) -> list[dict]:
 def weekly_report(student: StudentProfile, now=None) -> dict:
     now = now or timezone.now()
     start = now - WEEK
-    lang = student.explanation_language
+    lang = student.language
     week = LearningSession.objects.filter(student=student, created_at__gte=start).select_related(
         "subject", "topic__section"
     )
@@ -260,7 +260,7 @@ def weekly_report(student: StudentProfile, now=None) -> dict:
 
 def recommendations(student: StudentProfile, now=None) -> list[dict]:
     now = now or timezone.now()
-    lang = student.explanation_language
+    lang = student.language
     items: list[dict] = []
     sessions = LearningSession.objects.filter(student=student).select_related("subject", "topic")
 
@@ -365,7 +365,7 @@ def recommendations(student: StudentProfile, now=None) -> list[dict]:
 
 def child_progress(student: StudentProfile) -> dict:
     now = timezone.now()
-    lang = student.explanation_language
+    lang = student.language
     recent = (
         LearningSession.objects.filter(student=student)
         .select_related("subject", "topic", "assignment")
@@ -444,7 +444,7 @@ def notify_session_outcome(session: LearningSession) -> None:
     if session.outcome != Outcome.NEEDS_REVIEW:
         return
     student = session.student
-    lang = student.explanation_language
+    lang = student.language
     topic = session.topic.name(lang) if session.topic_id else None
     subject = session.subject.name(lang) if session.subject_id else None
     where = f"тема «{topic}»" if topic else (f"предмет «{subject}»" if subject else "задание")

@@ -132,8 +132,12 @@ class StudentProfile(UUIDModel, TimeStampedModel):
     nickname = models.CharField(max_length=40)
     grade = models.ForeignKey("curriculum.Grade", on_delete=models.PROTECT, related_name="students")
     curriculum = models.ForeignKey("curriculum.Curriculum", on_delete=models.PROTECT, related_name="students")
-    instruction_language = models.CharField(max_length=2, choices=LANGUAGE_CHOICES, default="ru")
-    explanation_language = models.CharField(max_length=2, choices=LANGUAGE_CHOICES, default="ru")
+    language = models.CharField(
+        max_length=2,
+        choices=LANGUAGE_CHOICES,
+        default="ru",
+        help_text="Единый язык ученика: интерфейс, объяснения и подсказка распознавания",
+    )
     avatar = models.CharField(max_length=32, choices=AVATAR_CHOICES, default="fox")
     pin_hash = models.CharField(max_length=128)
     pin_failed_attempts = models.PositiveSmallIntegerField(default=0)

@@ -77,7 +77,7 @@ export default function ChildProgressPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title={child.nickname}
-        subtitle={`${th("grade", { grade: child.grade.number })} · ${child.explanation_language.toUpperCase()}`}
+        subtitle={`${th("grade", { grade: child.grade.number })} · ${child.language.toUpperCase()}`}
         backHref="/parent"
         action={
           <div className="flex gap-2">

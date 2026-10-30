@@ -73,8 +73,8 @@ export interface StudentProfile {
   avatar: AvatarKey;
   grade: Grade;
   curriculum: CurriculumBrief;
-  instruction_language: Language;
-  explanation_language: Language;
+  /** One language for everything: interface, explanations and the recognition hint. */
+  language: Language;
   onboarding_completed: boolean;
   /** Parental controls (enforced by the backend). */
   share_conversations_with_parent: boolean;
@@ -551,6 +551,8 @@ export interface FamilySettings {
   notify_weekly_report: boolean;
   notify_email: boolean;
   country: string;
+  /** The parent's single language: interface and reports. */
+  preferred_language: Language;
 }
 
 export interface PushConfig {

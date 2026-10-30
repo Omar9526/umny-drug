@@ -151,8 +151,7 @@ def create_child(
     parent: ParentProfile,
     nickname: str,
     grade,
-    instruction_language: str,
-    explanation_language: str,
+    language: str,
     avatar: str,
     pin: str,
     consent_confirmed: bool,
@@ -170,7 +169,7 @@ def create_child(
         password=None,
         role=User.Role.STUDENT,
         display_name=nickname.strip(),
-        preferred_language=explanation_language,
+        preferred_language=language,
         family=family,
     )
     student = StudentProfile(
@@ -179,8 +178,7 @@ def create_child(
         nickname=nickname.strip(),
         grade=grade,
         curriculum=grade.curriculum,
-        instruction_language=instruction_language,
-        explanation_language=explanation_language,
+        language=language,
         avatar=avatar,
     )
     student.set_pin(pin)
@@ -212,8 +210,8 @@ def update_child(
     if "nickname" in data:
         student.user.display_name = student.nickname
         user_fields.append("display_name")
-    if "explanation_language" in data:
-        student.user.preferred_language = student.explanation_language
+    if "language" in data:
+        student.user.preferred_language = student.language
         user_fields.append("preferred_language")
     if user_fields:
         student.user.save(update_fields=[*user_fields, "updated_at"])

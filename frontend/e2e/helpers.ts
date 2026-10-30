@@ -43,8 +43,7 @@ export async function createFamily(
     data: {
       nickname: "Тест",
       grade_id: grade5,
-      instruction_language: "ru",
-      explanation_language: "ru",
+      language: "ru",
       avatar: "robot",
       pin: "2468",
       consent_confirmed: true,
